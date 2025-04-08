@@ -1,0 +1,73 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "cwd": "${workspaceFolder}/build"
+    },
+    "tasks": [
+        {
+            "label": "clean",
+            "type": "shell",
+            "command": "rm * -r",
+            "problemMatcher": []
+        },
+        {
+            "label": "cmake",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-G",
+                "MinGW Makefiles",
+                "..",
+                // "-DBOOT=ON",
+                "-DDEVICE_TYPE=STM32F070F6P6",
+                "-DBOARD_TYPE=BOARD_DEMO"
+            ],
+            "dependsOn": [
+                "clean"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "make",
+            "type": "shell",
+            // "command": "make -j10",
+            "command": "make ",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "rebuild",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "cmake",
+                "make"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "type": "shell",
+            "label": "download",
+            "command": "openocd",
+            "args": [
+                "-f",
+                "../scripts/stlink-dap.cfg",
+                "-f",
+                "../scripts/openocd_target.cfg",
+                "-c",
+                "init",
+                "-c",
+                "halt",
+                "-c",
+                "program STM32F070F6P6.bin 0x8000000",
+                "-c",
+                "reset",
+                "-c",
+                "shutdown"
+            ],
+            "group": "build",
+            "dependsOn": "make"
+        }
+    ]
+}

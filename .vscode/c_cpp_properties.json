@@ -1,0 +1,27 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/Platform/CMSIS/Include",
+                "${workspaceFolder}/Platform/CMSIS/Device/ST/STM32F0xx/Include",
+                "${workspaceFolder}/Platform/STM32F0xx_StdPeriph_Driver/inc"          
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                // "BOOT",
+                "STM32",
+                "STM32F070x6",
+                "USE_STDPERIPH_DRIVER"
+            ],
+            "compilerPath": "E://tools//mingw64//bin//gcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "windows-gcc-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
