@@ -17,7 +17,7 @@
                 "${workspaceFolder}/scripts/stlink-dap.cfg",
                 "${workspaceFolder}/scripts/openocd_target.cfg",
             ],
-            "showDevDebugOutput": "raw",
+            // "showDevDebugOutput": "raw",
             "svdFile": "${workspaceFolder}/scripts/STM32F0x0.svd",
             "preLaunchTask": "make"
         }

@@ -1,6 +1,5 @@
 #include "stm32f0xx.h"
-#include "stm32f0xx_gpio.h"
-#include "stm32f0xx_rcc.h"
+#include "stm32f0xx_conf.h"
 
 static volatile uint64_t ticks = 0;
 static volatile int val = 0;

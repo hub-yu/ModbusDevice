@@ -19,8 +19,11 @@
                 "MinGW Makefiles",
                 "..",
                 // "-DBOOT=ON",
+                // "-DRELEASE=ON",
+                "-DFREERTOS=ON",
                 "-DDEVICE_TYPE=STM32F070F6P6",
-                "-DBOARD_TYPE=BOARD_DEMO"
+                // "-DBOARD_TYPE=BOARD_DEMO"
+                "-DBOARD_TYPE=BOARD_RTOS"
             ],
             "dependsOn": [
                 "clean"
@@ -30,8 +33,8 @@
         {
             "label": "make",
             "type": "shell",
-            // "command": "make -j10",
-            "command": "make ",
+            "command": "make -j10",
+            // "command": "make ",
             "group": {
                 "kind": "build",
                 "isDefault": true
