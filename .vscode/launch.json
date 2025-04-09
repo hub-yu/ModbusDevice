@@ -10,15 +10,15 @@
             "executable": "${workspaceFolder}/build/STM32F070F6P6.elf",
             "request": "launch",
             "type": "cortex-debug",
-            // "runToEntryPoint": "main",  
-            "runToEntryPoint": "SystemInit",
+            "runToEntryPoint": "main",  
+            // "runToEntryPoint": "SystemInit",
             "servertype": "openocd",
             "configFiles": [
                 "${workspaceFolder}/scripts/stlink-dap.cfg",
                 "${workspaceFolder}/scripts/openocd_target.cfg",
             ],
             "showDevDebugOutput": "raw",
-            // "svdFile": "${workspaceFolder}/scripts/STM32F070F6P6.svd",
+            "svdFile": "${workspaceFolder}/scripts/STM32F0x0.svd",
             "preLaunchTask": "make"
         }
     ]
