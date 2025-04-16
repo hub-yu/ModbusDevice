@@ -12,7 +12,7 @@ include_directories(
 aux_source_directory(./CMSIS/Device/ST/STM32F0xx/Source/Templates SRC_LIST)
 
 #添加标准库源文件
-if(${DEVICE_TYPE} MATCHES "STM32F070F6P6")
+# if(${DEVICE_TYPE} MATCHES "STM32F070F6P6")
 
     file(GLOB STD_LIST
         ./STM32F0xx_StdPeriph_Driver/src/stm32f0xx_adc.c
@@ -40,7 +40,7 @@ if(${DEVICE_TYPE} MATCHES "STM32F070F6P6")
         ./STM32F0xx_StdPeriph_Driver/src/stm32f0xx_wwdg.c
 
     )
-endif()
+# endif()
 
 if(${FREERTOS})
     file(GLOB FREERTOS_LIST
@@ -48,6 +48,7 @@ if(${FREERTOS})
         ./FreeRTOS-Kernel/portable/GCC/ARM_CM0/portasm.c
         ./FreeRTOS-Kernel/portable/GCC/ARM_CM0/port.c
         ./FreeRTOS-Kernel/portable/MemMang/heap_4.c
+        # ./FreeRTOS-Kernel/portable/MemMang/heap_1.c
         ./FreeRTOS-Kernel/croutine.c
         ./FreeRTOS-Kernel/event_groups.c
         ./FreeRTOS-Kernel/list.c
@@ -61,6 +62,10 @@ endif()
 #设置启动文件变量
 if(${DEVICE_TYPE} MATCHES "STM32F070F6P6")
     set(START_UP_ASM ./CMSIS/Device/ST/STM32F0xx/Source/Templates/gcc/startup_stm32f070x6.s)
+endif()
+
+if(${DEVICE_TYPE} MATCHES "STM32F030F4P6")
+    set(START_UP_ASM ./CMSIS/Device/ST/STM32F0xx/Source/Templates/gcc/startup_stm32f030x6.s)
 endif()
 
 #设置支持 ASM

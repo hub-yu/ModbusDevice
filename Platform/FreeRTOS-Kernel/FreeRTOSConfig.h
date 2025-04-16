@@ -75,11 +75,11 @@
 
 /* configMAX_PRIORITIES 设置可用任务优先级的数量。任务可以分配优先级 0 到 (configMAX_PRIORITIES - 1)。
  * 0 是最低优先级。 */
-#define configMAX_PRIORITIES 32
+#define configMAX_PRIORITIES 4
 
 /* configMINIMAL_STACK_SIZE 定义空闲任务使用的堆栈大小（以字为单位，而不是以字节为单位！）。
  * 内核不使用此常量用于其他目的。演示应用程序使用该常量使演示在不同硬件架构之间具有一定的可移植性。 */
-#define configMINIMAL_STACK_SIZE 128
+#define configMINIMAL_STACK_SIZE 32
 
 /* configMAX_TASK_NAME_LEN 设置任务人类可读名称的最大长度（以字符为单位）。包括 NULL 终止符。 */
 #define configMAX_TASK_NAME_LEN 16
@@ -107,7 +107,7 @@
 
 /* configQUEUE_REGISTRY_SIZE 设置可以从队列注册表引用的队列和信号量的最大数量。
  * 仅在使用内核感知调试器时需要。默认为 0，如果保持未定义。 */
-#define configQUEUE_REGISTRY_SIZE 8
+#define configQUEUE_REGISTRY_SIZE 0
 
 /* 将 configENABLE_BACKWARD_COMPATIBILITY 设置为 1 以将旧版本 FreeRTOS 的函数名称和数据类型映射到其最新等效项。
  * 如果保持未定义，则默认为 1。 */
@@ -154,7 +154,7 @@
 /* 将 configUSE_TIMERS 设置为 1 以在构建中包含软件定时器功能。
  * 将 0 设置为从构建中排除软件定时器功能。必须在构建中包含 FreeRTOS/source/timers.c 源文件，如果 configUSE_TIMERS 设置为 1。
  * 如果保持未定义，则默认为 0。参见 https://www.freertos.org/RTOS-software-timer.html。 */
-#define configUSE_TIMERS 1
+#define configUSE_TIMERS 0
 
 /* configTIMER_TASK_PRIORITY 设置定时器任务使用的优先级。仅在 configUSE_TIMERS 设置为 1 时使用。
  * 定时器任务是标准 FreeRTOS 任务，因此其优先级与其他任务一样设置。
@@ -177,7 +177,7 @@
 /* 将 configUSE_EVENT_GROUPS 设置为 1 以在构建中包含事件组功能。
  * 将 0 设置为从构建中排除事件组功能。必须在构建中包含 FreeRTOS/source/event_groups.c 源文件，如果 configUSE_EVENT_GROUPS 设置为 1。
  * 如果保持未定义，则默认为 1。 */
-#define configUSE_EVENT_GROUPS 1
+#define configUSE_EVENT_GROUPS 0
 
 /******************************************************************************/
 /* 流缓冲区相关定义。 *******************************************************/
@@ -205,7 +205,7 @@
 /* 设置 FreeRTOS 堆的总大小（以字节为单位），当 heap_1.c、heap_2.c 或 heap_4.c 包含在构建中时。
  * 此值默认为 4096 字节，但必须根据每个应用程序进行调整。
  * 注意，堆将出现在 .bss 段中。参见 https://www.freertos.org/a00111.html。 */
-#define configTOTAL_HEAP_SIZE (2 * 1024)
+#define configTOTAL_HEAP_SIZE (2 * 1024 - 100)
 
 /* 将 configAPPLICATION_ALLOCATED_HEAP 设置为 1 以让应用程序分配用作 FreeRTOS 堆的数组。
  * 将 0 设置为让链接器分配用作 FreeRTOS 堆的数组。如果保持未定义，则默认为 0。 */
@@ -476,31 +476,31 @@
 
 /* 将以下 configUSE_* 常量设置为 1 以在构建中包含命名功能，或 0 以从构建中排除命名功能。 */
 #define configUSE_TASK_NOTIFICATIONS 1
-#define configUSE_MUTEXES 1
-#define configUSE_RECURSIVE_MUTEXES 1
-#define configUSE_COUNTING_SEMAPHORES 1
+#define configUSE_MUTEXES 0
+#define configUSE_RECURSIVE_MUTEXES 0
+#define configUSE_COUNTING_SEMAPHORES 0
 #define configUSE_QUEUE_SETS 0
 #define configUSE_APPLICATION_TASK_TAG 0
 
 /* 将以下 INCLUDE_* 常量设置为 1 以在构建中包含命名 API 函数，或 0 以从构建中排除命名 API 函数。
  * 大多数链接器即使常量为 1 也会删除未使用的函数。 */
-#define INCLUDE_vTaskPrioritySet 1
-#define INCLUDE_uxTaskPriorityGet 1
-#define INCLUDE_vTaskDelete 1
-#define INCLUDE_vTaskSuspend 1
-#define INCLUDE_xResumeFromISR 1
-#define INCLUDE_vTaskDelayUntil 1
+#define INCLUDE_vTaskPrioritySet 0
+#define INCLUDE_uxTaskPriorityGet 0
+#define INCLUDE_vTaskDelete 0
+#define INCLUDE_vTaskSuspend 0
+#define INCLUDE_xResumeFromISR 0
+#define INCLUDE_vTaskDelayUntil 0
 #define INCLUDE_vTaskDelay 1
-#define INCLUDE_xTaskGetSchedulerState 1
+#define INCLUDE_xTaskGetSchedulerState 0
 #define INCLUDE_xTaskGetCurrentTaskHandle 1
-#define INCLUDE_uxTaskGetStackHighWaterMark 0
+#define INCLUDE_uxTaskGetStackHighWaterMark 1
 #define INCLUDE_xTaskGetIdleTaskHandle 0
 #define INCLUDE_eTaskGetState 0
-#define INCLUDE_xEventGroupSetBitFromISR 1
+#define INCLUDE_xEventGroupSetBitFromISR 0
 #define INCLUDE_xTimerPendFunctionCall 0
 #define INCLUDE_xTaskAbortDelay 0
-#define INCLUDE_xTaskGetHandle 1
-#define INCLUDE_xTaskResumeFromISR 1
+#define INCLUDE_xTaskGetHandle 0
+#define INCLUDE_xTaskResumeFromISR 0
 
 #define vPortSVCHandler SVC_Handler
 #define xPortPendSVHandler PendSV_Handler

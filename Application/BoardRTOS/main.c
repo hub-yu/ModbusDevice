@@ -5,9 +5,9 @@
 #include "FreeRTOSConfig.h"
 #include "task.h"
 
+
 static void led_init(void *param)
 {
-
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
 
     GPIO_InitTypeDef GPIO_InitStruct;
@@ -22,13 +22,11 @@ static void led_init(void *param)
 void led_task(void *param)
 {
     led_init(param);
-
     for (;;)
     {
-
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(100));
         GPIO_SetBits(GPIOA, GPIO_Pin_4);
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(100));
         GPIO_ResetBits(GPIOA, GPIO_Pin_4);
     }
 }
@@ -39,7 +37,7 @@ int main(void)
     SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK);
     SysTick_Config(SystemCoreClock / configTICK_RATE_HZ);
 
-    xTaskCreate(led_task, "led_task", 256, NULL, 3, NULL);
+    xTaskCreate(led_task, "led_task", 64, NULL, 1, NULL);
     vTaskStartScheduler();
     while (1)
     {

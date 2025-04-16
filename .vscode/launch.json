@@ -7,7 +7,7 @@
         {
             "name": "Cortex Debug STM32",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/build/STM32F070F6P6.elf",
+            "executable": "${workspaceFolder}/build/STM32F030F4P6.elf",
             "request": "launch",
             "type": "cortex-debug",
             "runToEntryPoint": "main",  

@@ -22,7 +22,7 @@ set(MCU_FLAGS "-mcpu=cortex-m0 -mthumb -mfloat-abi=soft")
 set(CMAKE_C_FLAGS_DEBUG "-g -ggdb -Og")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 # set(CMAKE_C_FLAGS "${MCU_FLAGS}  -ffunction-sections -fdata-sections -fno-builtin -fno-common -Wextra -Werror -Wno-unknown-pragmas -Wl,-u,_printf_float") #-w -Wall
-set(CMAKE_C_FLAGS "${MCU_FLAGS}  -Wall -Wno-unknown-pragmas")
+set(CMAKE_C_FLAGS "${MCU_FLAGS} -ffunction-sections -fdata-sections -fno-builtin -fno-common -Wall -Wno-unknown-pragmas")
 set(CMAKE_ASM_FLAGS "${MCU_FLAGS} -x assembler-with-cpp")
 
 
@@ -64,6 +64,10 @@ endif()
 
 if(${DEVICE_TYPE} MATCHES "STM32F070F6P6")
     add_definitions(-DSTM32F070x6)
+endif()
+
+if(${DEVICE_TYPE} MATCHES "STM32F030F4P6")
+    add_definitions(-DSTM32F030)
 endif()
 
 add_definitions(-DUSE_STDPERIPH_DRIVER)

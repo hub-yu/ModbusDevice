@@ -17,9 +17,16 @@ if(${BOARD_TYPE} MATCHES "BOARD_DEMO")
     add_subdirectory(BoardDemo)
 endif()
 
-#裸跑
+#RTOS
 if(${BOARD_TYPE} MATCHES "BOARD_RTOS") 
     add_definitions(-DBOARD_RTOS)
     message("build for BOARD_RTOS!")
     add_subdirectory(BoardRTOS)
+endif()
+
+#设备
+if(${BOARD_TYPE} MATCHES "BOARD_DEVICE") 
+    add_definitions(-DBOARD_DEVICE)
+    message("build for BOARD_DEVICE!")
+    add_subdirectory(BoardDevice)
 endif()
