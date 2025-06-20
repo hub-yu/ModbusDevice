@@ -76,9 +76,9 @@ size_t uart_rcv_override(const void *array, size_t len)
     case MODBUS_CMD_SET_OUT:
     case MODBUS_CMD_SET_REG:
     {
-        // uint16_t crc = MODBUS_TO_UINT16(data[6], data[7]);
-        // if (crc != crc16(array, 8 - 2))
-        //     return 1;
+        uint16_t crc = MODBUS_TO_UINT16(data[7], data[6]);
+        if (crc && (crc != crc16(array, 8 - 2)))
+            return 1;
 
         Modbus_t modbus_t = {
             .addr = data[0],
@@ -98,9 +98,9 @@ size_t uart_rcv_override(const void *array, size_t len)
         if (len < len_total)
             return 0;
 
-        // uint16_t crc = MODBUS_TO_UINT16(data[len_total - 2], data[len_total - 1]);
-        // if (crc != crc16(array, len_total - 2))
-        //     return 1;
+        uint16_t crc = MODBUS_TO_UINT16(data[len_total - 1], data[len_total - 2]);
+        if (crc && (crc != crc16(array, len_total - 2)))
+            return 1;
 
         Modbus_t modbus_t = {
             .addr = data[0],
@@ -347,8 +347,8 @@ static void modbus_task(void *param)
             if (length)
             {
                 uint16_t crc = crc16(data, length);
-                data[length] = MODBUS_FROM_UINT16_HIGH(crc);
-                data[length + 1] = MODBUS_FROM_UINT16_LOW(crc);
+                data[length + 1] = MODBUS_FROM_UINT16_HIGH(crc);
+                data[length] = MODBUS_FROM_UINT16_LOW(crc);
                 uart_snd(data, 2 + length);
             }
         }

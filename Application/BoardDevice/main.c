@@ -9,6 +9,7 @@
 #include "uart.h"
 #include "modbus.h"
 
+
 int main(void)
 {
     SystemCoreClockUpdate();
