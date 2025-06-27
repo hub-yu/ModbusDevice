@@ -23,7 +23,9 @@
         "stdint.h": "c",
         "freertosconfig.h": "c",
         "led.h": "c",
-        "stream_buffer.h": "c"
+        "stream_buffer.h": "c",
+        "stddef.h": "c",
+        "stm32f0xx_flash.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": true
 }

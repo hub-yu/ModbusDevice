@@ -10,6 +10,8 @@
 
 #include "uart.h"
 
+#include "stm32f0xx.h"
+
 typedef enum
 {
     MODBUS_CMD_GET_OUT = 1,       // 00001-09999
@@ -38,6 +40,8 @@ typedef struct Modbus_t
 
 static QueueHandle_t xQueue;
 static volatile uint32_t reg_out = 0UL; // 输出寄存器
+static volatile uint16_t reg = 0UL;     // 保持寄存器
+static uint16_t slaveId = MODBUS_ADDR;
 
 static uint16_t crc16(const uint8_t *data, size_t length)
 {
@@ -63,7 +67,7 @@ size_t uart_rcv_override(const void *array, size_t len)
     if (len < 8)
         return 0;
 
-    if (data[0] != MODBUS_ADDR)
+    if (data[0] != slaveId)
         return 1;
 
     switch (data[1])
@@ -171,7 +175,7 @@ static size_t modbus_get_reg(const Modbus_t *modbus_t, uint8_t *data)
     data[2] = reg_number;
     // todo
     {
-        uint16_t val = 0xabcd; // 虚拟寄存器
+        uint16_t val = *(uint16_t *)(0x8003c00); // 虚拟寄存器
 
         for (uint8_t i = 0; i < modbus_t->num; i++)
         {
@@ -227,8 +231,8 @@ static size_t modbus_set_out(const Modbus_t *modbus_t, uint8_t *data)
 static size_t modbus_set_reg(const Modbus_t *modbus_t, uint8_t *data)
 {
     // todo
-    {
-    }
+    if (modbus_t->reg == 0)
+        reg = modbus_t->num;
     data[0] = modbus_t->addr;
     data[1] = modbus_t->cmd;
     data[2] = MODBUS_FROM_UINT16_HIGH(modbus_t->reg);
@@ -283,6 +287,16 @@ static size_t modbus_set_reg_mult(const Modbus_t *modbus_t, uint8_t *data)
     return 6;
 }
 
+void flash_sync()
+{
+    uint32_t addr = 0x8003c00;
+    FLASH_Unlock();
+    FLASH_ErasePage(addr);
+    FLASH_ProgramHalfWord(addr, reg);
+    FLASH_ProgramWord(addr + 2, reg_out);
+    FLASH_Lock();
+}
+
 static void modbus_task(void *param)
 {
     static const uint16_t out_pin[MODBUS_GPIO_NUM] = {
@@ -292,6 +306,10 @@ static void modbus_task(void *param)
         MODBUS_GPIO_OUT3_PIN,
         MODBUS_GPIO_OUT4_PIN,
         MODBUS_GPIO_OUT5_PIN};
+
+    slaveId = *(uint16_t *)(0x8003c00);
+    reg = *(uint16_t *)(0x8003c00);
+    reg_out = *(uint32_t *)(0x8003c02);
 
     for (;;)
     {
@@ -307,7 +325,7 @@ static void modbus_task(void *param)
         }
 
         Modbus_t modbus_t;
-        if (xQueueReceive(xQueue, &modbus_t, pdMS_TO_TICKS(100)) == pdPASS)
+        if (xQueueReceive(xQueue, &modbus_t, pdMS_TO_TICKS(1000)) == pdPASS)
         {
             uint8_t data[64];
             size_t length = 0;
@@ -351,6 +369,11 @@ static void modbus_task(void *param)
                 data[length] = MODBUS_FROM_UINT16_LOW(crc);
                 uart_snd(data, 2 + length);
             }
+        }
+        else {
+            // 延时保存到FLASH, 避免频繁刷新
+            if ((reg != *(uint16_t *)(0x8003c00)) || (reg_out != *(uint32_t *)(0x8003c02)))
+                flash_sync();
         }
     }
 }

@@ -20,7 +20,7 @@
                 "STM32F070x6",
                 "USE_STDPERIPH_DRIVER"
             ],
-            "compilerPath": "E://tools//mingw64//bin//gcc.exe",
+            // "compilerPath": "E://tools//mingw64//bin//gcc.exe",
             "cStandard": "c11",
             "cppStandard": "gnu++14",
             "intelliSenseMode": "windows-gcc-x64",

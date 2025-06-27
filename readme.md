@@ -24,64 +24,20 @@
 
 ## 命令表
 ```
-{
-    {
-        name: "打开1",
-        str: "[11 05 00 00 ff 00 00 00]"
-    },
-    {
-        name: "打开2",
-        str: "[11 05 00 01 ff 00 00 00]"
-    },
-    {
-        name: "打开3",
-        str: "[11 05 00 02 ff 00 00 00]"
-    },
-    {
-        name: "打开4",
-        str: "[11 05 00 03 ff 00 00 00]"
-    },
-    {
-        name: "打开5",
-        str: "[11 05 00 04 ff 00 00 00]"
-    },
-    {
-        name: "打开6",
-        str: "[11 05 00 05 ff 00 00 00]"
-    },
-    {
-        name: "关闭1",
-        str: "[11 05 00 00 00 00 00 00]"
-    },
-    {
-        name: "关闭2",
-        str: "[11 05 00 01 00 00 00 00]"
-    },
-    {
-        name: "关闭3",
-        str: "[11 05 00 02 00 00 00 00]"
-    },
-    {
-        name: "关闭4",
-        str: "[11 05 00 03 00 00 00 00]"
-    },
-    {
-        name: "关闭5",
-        str: "[11 05 00 04 00 00 00 00]"
-    },
-    {
-        name: "关闭6",
-        str: "[11 05 00 05 00 00 00 00]"
-    },
-    {
-        name: "全部关闭",
-        str: "[11 0f 00 00 00 06 01 00 00 00]"
-    },
-    {
-        name: "全部打开",
-        str: "[11 0f 00 00 00 06 01 3f 00 00]"
-    },
-}
+       { name: "打开1", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":0, "number":0xff00})},
+       { name: "打开2", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":1, "number":0xff00})},
+       { name: "打开3", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":2, "number":0xff00})},
+       { name: "打开4", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":3, "number":0xff00})},
+       { name: "打开5", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":4, "number":0xff00})},
+       { name: "打开6", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":5, "number":0xff00})},
+       { name: "关闭1", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":0, "number":0})},
+       { name: "关闭2", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":1, "number":0})},
+       { name: "关闭3", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":2, "number":0})},
+       { name: "关闭4", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":3, "number":0})},
+       { name: "关闭5", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":4, "number":0})},
+       { name: "关闭6", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":5, "number":0})},
+       { name: "打开全部", str: JSON.stringify({"slaveId":17, "functionCode":15, "address":0, "number":6, "bytes": 1, "data":[0x3f]})},
+       { name: "关闭全部", str: JSON.stringify({"slaveId":17, "functionCode":15, "address":0, "number":6, "bytes": 1, "data":[0]})},
 ```
 
 ## 资源使用情况
