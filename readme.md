@@ -1,3 +1,12 @@
+## 版本
+
+# v1.1.0 增加输出的延时掉电存储，即当超过一秒没有接受到指令，且FLASH与输出不同时，保存数据到FLASH
+#        增加可配置的设备ID, 通过保持寄存器中的第一个寄存器实现，避免错误的写入，下次上电后生效
+#        增加二进制编码闪烁法来表示设备地址ID，避免遗忘该设备ID，慢闪0，双闪1，常亮分割
+#           如设备ID=17 (0001 0001) 周期闪烁规律如下： 常亮->慢闪->慢闪->慢闪->双闪->慢闪->慢闪->慢闪->双闪
+#       
+# v1.0.0 首次添加
+
 ## 硬件
 - cpu:  stm32f030f4p6 
 - 晶振:  8MHz
@@ -23,22 +32,7 @@
 
 
 ## 命令表
-```
-       { name: "打开1", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":0, "number":0xff00})},
-       { name: "打开2", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":1, "number":0xff00})},
-       { name: "打开3", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":2, "number":0xff00})},
-       { name: "打开4", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":3, "number":0xff00})},
-       { name: "打开5", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":4, "number":0xff00})},
-       { name: "打开6", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":5, "number":0xff00})},
-       { name: "关闭1", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":0, "number":0})},
-       { name: "关闭2", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":1, "number":0})},
-       { name: "关闭3", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":2, "number":0})},
-       { name: "关闭4", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":3, "number":0})},
-       { name: "关闭5", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":4, "number":0})},
-       { name: "关闭6", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":5, "number":0})},
-       { name: "打开全部", str: JSON.stringify({"slaveId":17, "functionCode":15, "address":0, "number":6, "bytes": 1, "data":[0x3f]})},
-       { name: "关闭全部", str: JSON.stringify({"slaveId":17, "functionCode":15, "address":0, "number":6, "bytes": 1, "data":[0]})},
-```
+
 
 ## 资源使用情况
 

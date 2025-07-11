@@ -67,7 +67,7 @@ size_t uart_rcv_override(const void *array, size_t len)
     if (len < 8)
         return 0;
 
-    if (data[0] != slaveId)
+    if (data[0] && (data[0] != slaveId))
         return 1;
 
     switch (data[1])
