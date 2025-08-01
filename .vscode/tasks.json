@@ -18,14 +18,11 @@
                 "-G",
                 "MinGW Makefiles",
                 "..",
-                // "-DBOOT=ON",
-                // "-DRELEASE=ON",
-                "-DFREERTOS=ON",
-                // "-DDEVICE_TYPE=STM32F070F6P6",
-                "-DDEVICE_TYPE=STM32F030F4P6",
-                // "-DBOARD_TYPE=BOARD_DEMO"
-                // "-DBOARD_TYPE=BOARD_RTOS"
-                "-DBOARD_TYPE=BOARD_DEVICE"
+                "-DFREERTOS=ON",              
+                // "-DDEVICE_TYPE=STM32F030F4P6",
+                // "-DBOARD_TYPE=BOARD_DEVICE"
+                "-DDEVICE_TYPE=STM32F103C8T6",               
+                "-DBOARD_TYPE=BOARD_SOCKET"
             ],
             "dependsOn": [
                 "clean"
@@ -35,8 +32,8 @@
         {
             "label": "make",
             "type": "shell",
-            // "command": "make -j10",
-            "command": "make ",
+            "command": "make -j32",
+            // "command": "make",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -59,20 +56,22 @@
                 "-f",
                 "../scripts/stlink-dap.cfg",
                 "-f",
-                "../scripts/openocd_target.cfg",
+                "../scripts/stm32f0x.cfg",
+                // "../scripts/stm32f1x.cfg",
                 "-c",
                 "init",
                 "-c",
                 "halt",
                 "-c",
-                "program STM32F030F4P6.bin 0x8000000",
+                "program app.bin 0x8000000",
                 "-c",
                 "reset",
                 "-c",
                 "shutdown"
             ],
             "group": "build",
-            "dependsOn": "make"
+            "dependsOn": "make",
+            "problemMatcher": []
         }
     ]
 }

@@ -3,6 +3,13 @@
 
 #include <stddef.h>
 
+#define UART_BAUD_RATE 115200
+#define UART_RCV_BUFFER_SIZE 64
+#define UART_SND_BUFFER_SIZE 64
+#define UART_TASK_NAME "uart_task"
+#define UART_TASK_PRIORITY 0
+#define UART_TASK_STACK_SIZE 64
+
 void uart_init();
 void uart_snd(const void *array, size_t len);
 void uart_snd_isr(const void *array, size_t len);

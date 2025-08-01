@@ -6,10 +6,19 @@
                 "${workspaceFolder}/Platform/CMSIS/Include",
                 "${workspaceFolder}/Platform/CMSIS/Device/ST/STM32F0xx/Include",
                 "${workspaceFolder}/Platform/STM32F0xx_StdPeriph_Driver/inc",
+                // "${workspaceFolder}/Platform/CMSIS/Device/ST/STM32F10x/Include",
+                // "${workspaceFolder}/Platform/STM32F10x_StdPeriph_Driver/inc",
                 "${workspaceFolder}/Platform/FreeRTOS-Kernel/include",
                 "${workspaceFolder}/Platform/FreeRTOS-Kernel/portable/GCC/ARM_CM0",
-                "${workspaceFolder}/Platform/FreeRTOS-Kernel",
-                "${workspaceFolder}/Application/BoardDevice/Include"
+                "${workspaceFolder}/Platform/FreeRTOS-Kernel/portable/GCC/ARM_CM3",
+                "${workspaceFolder}/Platform/FreeRTOS-Kernel/portable/GCC/ARM_CM3_MPU",
+                "${workspaceFolder}/Platform/FreeRTOS-Kernel",                
+                "${workspaceFolder}/Application/BoardDevice/Include",
+                // "${workspaceFolder}/Application/BoardSocket/Include",
+                "${workspaceFolder}/Application/ioLibrary_Driver/Ethernet",
+                "${workspaceFolder}/Application/ioLibrary_Driver/Ethernet/W5500",
+                "${workspaceFolder}/Application/Modbus"
+
             ],
             "defines": [
                 "_DEBUG",
@@ -18,6 +27,7 @@
                 // "BOOT",
                 "STM32",
                 "STM32F070x6",
+                // "STM32F10X_MD",
                 "USE_STDPERIPH_DRIVER"
             ],
             // "compilerPath": "E://tools//mingw64//bin//gcc.exe",

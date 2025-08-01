@@ -7,7 +7,7 @@
         {
             "name": "Cortex Debug STM32",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/build/STM32F030F4P6.elf",
+            "executable": "${workspaceFolder}/build/app.elf",
             "request": "launch",
             "type": "cortex-debug",
             "runToEntryPoint": "main",  
@@ -15,10 +15,12 @@
             "servertype": "openocd",
             "configFiles": [
                 "${workspaceFolder}/scripts/stlink-dap.cfg",
-                "${workspaceFolder}/scripts/openocd_target.cfg",
+                "${workspaceFolder}/scripts/stm32f0x.cfg",
+                // "${workspaceFolder}/scripts/stm32f1x.cfg",
             ],
             // "showDevDebugOutput": "raw",
-            "svdFile": "${workspaceFolder}/scripts/STM32F0x0.svd",
+            // "svdFile": "${workspaceFolder}/scripts/STM32F0x0.svd",
+            "svdFile": "${workspaceFolder}/scripts/STM32F103xx.svd",
             "preLaunchTask": "make"
         }
     ]

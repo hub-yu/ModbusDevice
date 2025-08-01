@@ -35,7 +35,12 @@
 /* 在大多数情况下，configCPU_CLOCK_HZ 必须设置为驱动用于生成内核周期性滴答中断的外设的时钟频率。
  * 默认值设置为 20MHz，匹配 QEMU 演示设置。您的应用程序肯定需要不同的值，因此请正确设置此值。
  * 这通常，但并不总是，等于主系统时钟频率。 */
+
+#ifdef STM32F10X_MD
+#define configCPU_CLOCK_HZ ((unsigned long)72000000)
+#else
 #define configCPU_CLOCK_HZ ((unsigned long)48000000)
+#endif
 
 /* configSYSTICK_CLOCK_HZ 是 ARM Cortex-M 端口的可选参数。
  *
@@ -75,7 +80,13 @@
 
 /* configMAX_PRIORITIES 设置可用任务优先级的数量。任务可以分配优先级 0 到 (configMAX_PRIORITIES - 1)。
  * 0 是最低优先级。 */
-#define configMAX_PRIORITIES 4
+
+ #ifdef STM32F10X_MD
+#define configMAX_PRIORITIES 10
+#else
+#define configMAX_PRIORITIES 3
+#endif
+
 
 /* configMINIMAL_STACK_SIZE 定义空闲任务使用的堆栈大小（以字为单位，而不是以字节为单位！）。
  * 内核不使用此常量用于其他目的。演示应用程序使用该常量使演示在不同硬件架构之间具有一定的可移植性。 */
@@ -205,7 +216,11 @@
 /* 设置 FreeRTOS 堆的总大小（以字节为单位），当 heap_1.c、heap_2.c 或 heap_4.c 包含在构建中时。
  * 此值默认为 4096 字节，但必须根据每个应用程序进行调整。
  * 注意，堆将出现在 .bss 段中。参见 https://www.freertos.org/a00111.html。 */
+#ifdef STM32F10X_MD
+#define configTOTAL_HEAP_SIZE (16 * 1024)
+#else
 #define configTOTAL_HEAP_SIZE (2 * 1024 - 100)
+#endif
 
 /* 将 configAPPLICATION_ALLOCATED_HEAP 设置为 1 以让应用程序分配用作 FreeRTOS 堆的数组。
  * 将 0 设置为让链接器分配用作 FreeRTOS 堆的数组。如果保持未定义，则默认为 0。 */

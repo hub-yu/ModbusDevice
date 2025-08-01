@@ -7,7 +7,7 @@
 
 #include "led.h"
 #include "uart.h"
-#include "modbus.h"
+#include "device.h"
 
 
 int main(void)
@@ -16,12 +16,50 @@ int main(void)
     SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK);
     SysTick_Config(SystemCoreClock / configTICK_RATE_HZ);
 
+    device_init();
     led_init();
-
     uart_init();
-    modbus_init();
+
     vTaskStartScheduler();
-    for (;;)
+    while (1)
     {
     }
 }
+
+
+void NMI_Handler(void)
+{
+    while (1)
+    {
+    }
+}
+
+void HardFault_Handler(void)
+{
+    while (1)
+    {
+    }
+}
+
+
+void MemManage_Handler(void)
+{
+    while (1)
+    {
+    }
+}
+
+void BusFault_Handler(void)
+{
+    while (1)
+    {
+    }
+}
+
+void UsageFault_Handler(void)
+{
+    while (1)
+    {
+    }
+}
+
