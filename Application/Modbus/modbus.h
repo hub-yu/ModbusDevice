@@ -23,6 +23,7 @@ typedef enum
 #pragma pack(push, 1)
 typedef struct Modbus
 {
+    uint8_t from;   // from interface
     uint8_t addr;   // slave address
     uint8_t cmd;    // command
     uint16_t reg;   // register address

@@ -15,8 +15,8 @@
             "servertype": "openocd",
             "configFiles": [
                 "${workspaceFolder}/scripts/stlink-dap.cfg",
-                "${workspaceFolder}/scripts/stm32f0x.cfg",
-                // "${workspaceFolder}/scripts/stm32f1x.cfg",
+                // "${workspaceFolder}/scripts/stm32f0x.cfg",
+                "${workspaceFolder}/scripts/stm32f1x.cfg",
             ],
             // "showDevDebugOutput": "raw",
             // "svdFile": "${workspaceFolder}/scripts/STM32F0x0.svd",

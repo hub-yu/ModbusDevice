@@ -97,7 +97,18 @@
         "application.h": "c",
         "w5100s.h": "c",
         "timers.h": "c",
-        "stm32f10x_flash.h": "c"
+        "stm32f10x_flash.h": "c",
+        "typeinfo": "c",
+        "dns.h": "c",
+        "dhcpv6.h": "c",
+        "vector": "c",
+        "netutil.h": "c",
+        "initializer_list": "c",
+        "multicast.h": "c",
+        "croutine.h": "c",
+        "deque": "c",
+        "unordered_map": "c",
+        "mpu_wrappers.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": false,
     "C_Cpp.errorSquiggles": "disabled"

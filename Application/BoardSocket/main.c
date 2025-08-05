@@ -11,12 +11,9 @@
 #include "modbus.h"
 #include "device.h"
 
-
-
 static void consoleHook(const uint8_t *d, int32_t l)
 {
-    
-    // uart_snd(d, l);
+    uart_snd(d, l);
 }
 
 int main(void)
@@ -30,12 +27,15 @@ int main(void)
 
     led_init();
     uart_init();
-    LogSetHook(consoleHook);
     net_init();
-    
+
+    // 是否开启串口日志输出
+    if (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_15) == Bit_RESET)
+        LogSetHook(consoleHook);
+
     LOG_INFO("##############################\r\n");
     LOG_INFO("#### build %s %s\r\n", __DATE__, __TIME__);
-    LOG_INFO("#### version %d.%d.%d\r\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);    
+    LOG_INFO("#### version %d.%d.%d\r\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
     LOG_INFO("##############################\r\n");
 
     vTaskStartScheduler();
@@ -43,7 +43,6 @@ int main(void)
     {
     }
 }
-
 
 void NMI_Handler(void)
 {
@@ -58,7 +57,6 @@ void HardFault_Handler(void)
     {
     }
 }
-
 
 void MemManage_Handler(void)
 {
@@ -80,4 +78,3 @@ void UsageFault_Handler(void)
     {
     }
 }
-

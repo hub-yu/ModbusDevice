@@ -5,21 +5,24 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "stream_buffer.h"
+#include "semphr.h"
 
 #include "w5500.h"
 #include "socket.h"
 #include "wizchip_conf.h"
+#include "device.h"
 
-#include <string.h>
+static SemaphoreHandle_t xSemaphore;
+static StreamBufferHandle_t xStreamBufferSnd[SOCKET_END];
+static DeviceMap deviceMap;
 
 void EXTI15_10_IRQHandler(void)
 {
     if (EXTI_GetITStatus(EXTI_Line10) != RESET)
     {
-        // 此处添加中断处理代码（例如翻转LED、发送信号等）
-        GPIO_SetBits(GPIOB, GPIO_Pin_9);
         // 清除中断标志位（重要！）
         EXTI_ClearITPendingBit(EXTI_Line10);
+        xSemaphoreGiveFromISR(xSemaphore, NULL);
     }
 }
 
@@ -69,7 +72,7 @@ static void spi_write(uint8_t data)
     spi_rw(data);
 }
 
-void reset_net(void)
+static void reset_net(void)
 {
     GPIO_ResetBits(GPIOB, GPIO_Pin_11); // min 500us
     vTaskDelay(pdMS_TO_TICKS(10));
@@ -80,7 +83,7 @@ void reset_net(void)
     vTaskDelay(pdMS_TO_TICKS(10));
 }
 
-void get_common_regs()
+static void get_common_regs()
 {
     LOG_INFO("Mode: 0x%02x\r\n", getMR()); // 配置模式寄存器
 
@@ -105,9 +108,10 @@ void get_common_regs()
     LOG_INFO("IR: 0x%02x\r\n", getIR());             // 状态中断标志
     LOG_INFO("IMR: 0x%02x\r\n", getIMR());           // 状态中断掩码
     LOG_INFO("SIR: 0x%02x\r\n", getSIR());           // socket中断标志
-    LOG_INFO("SIMR: 0x%02x\r\n", getSIMR());         // socket中断掩码
-    LOG_INFO("RTR: 0x%04x\r\n", getRTR());           // 重发延时 100us × RTR
-    LOG_INFO("RCR: 0x%02x\r\n", getRCR());           // 重发次数 RCR + 1
+    setSIMR(0xff);
+    LOG_INFO("SIMR: 0x%02x\r\n", getSIMR()); // socket中断掩码
+    LOG_INFO("RTR: 0x%04x\r\n", getRTR());   // 重发延时 100us × RTR
+    LOG_INFO("RCR: 0x%02x\r\n", getRCR());   // 重发次数 RCR + 1
 
     vTaskDelay(pdMS_TO_TICKS(200));
     LOG_INFO("PTIMER: 0x%02x\r\n", getPTIMER()); // ppp链路控制协议请求定时器  25ms × PTIMER
@@ -127,13 +131,17 @@ void get_common_regs()
     LOG_INFO("version: %d\r\n", getVERSIONR());    // W5500 版本号 always 0x04
 }
 
-void get_socket_regs(uint8_t ch)
+static void get_socket_regs(uint8_t ch)
 {
     LOG_INFO("ch[%d] ##############\r\n", ch);
-    LOG_INFO("ch[%d] MR: 0x%02x\r\n", ch, getSn_MR(ch));   // Socket n Mode Register
-    LOG_INFO("ch[%d] CR: 0x%02x\r\n", ch, getSn_CR(ch));   // Socket n Command Register
-    LOG_INFO("ch[%d] IR: 0x%02x\r\n", ch, getSn_IR(ch));   // Socket n Interrupt Register
-    LOG_INFO("ch[%d] SR: 0x%02x\r\n", ch, getSn_SR(ch));   // Socket n Status Register
+    LOG_INFO("ch[%d] MR: 0x%02x\r\n", ch, getSn_MR(ch)); // Socket n Mode Register
+    LOG_INFO("ch[%d] CR: 0x%02x\r\n", ch, getSn_CR(ch)); // Socket n Command Register
+
+    // setSn_IR(ch, Sn_IR_RECV);
+    LOG_INFO("ch[%d] IR: 0x%02x\r\n", ch, getSn_IR(ch)); // Socket n Interrupt Register
+    LOG_INFO("ch[%d] SR: 0x%02x\r\n", ch, getSn_SR(ch)); // Socket n Status Register
+    setSn_IMR(ch, Sn_IR_RECV | Sn_IR_DISCON | Sn_IR_CON);
+    // setSn_IMR(ch, Sn_IR_RECV);
     LOG_INFO("ch[%d] IMR: 0x%02x\r\n", ch, getSn_IMR(ch)); // Socket n Interrupt Mask
     LOG_INFO("ch[%d] PORT: %d\r\n", ch, getSn_PORT(ch));   // Socket n Source Port Register
 
@@ -169,7 +177,150 @@ void get_socket_regs(uint8_t ch)
     LOG_INFO("ch[%d] TxMAX: 0X%02x\r\n", ch, getSn_TxMAX(ch)); //
 }
 
-void net_task(void *arg)
+
+static void net_update()
+{
+    uint8_t mac[6] = {deviceMap.regs[REG_NET_MAC_0], deviceMap.regs[REG_NET_MAC_1], deviceMap.regs[REG_NET_MAC_2], deviceMap.regs[REG_NET_MAC_3], deviceMap.regs[REG_NET_MAC_4], deviceMap.regs[REG_NET_MAC_5]};
+    uint8_t gateway[4] = {deviceMap.regs[REG_NET_GATEWAY_0], deviceMap.regs[REG_NET_GATEWAY_1], deviceMap.regs[REG_NET_GATEWAY_2], deviceMap.regs[REG_NET_GATEWAY_3]};
+    uint8_t mask[4] = {deviceMap.regs[REG_NET_MASK_0], deviceMap.regs[REG_NET_MASK_1], deviceMap.regs[REG_NET_MASK_2], deviceMap.regs[REG_NET_MASK_3]};
+    uint8_t ip[4] = {deviceMap.regs[REG_NET_IP_0], deviceMap.regs[REG_NET_IP_1], deviceMap.regs[REG_NET_IP_2], deviceMap.regs[REG_NET_IP_3]};
+    setSHAR(mac);
+    setGAR(gateway);
+    setSUBR(mask);
+    setSIPR(ip);
+}
+
+static void udp(uint8_t sn, BaseType_t taked)
+{
+    static uint8_t array[NET_RCV_BUFFER_SIZE];
+    static size_t len_received = 0;
+    static uint8_t remote_ip[4] = {192, 168, 1, 4};
+    static uint16_t remote_port = 5000;
+
+    LOG_INFO("sn: %d, SR: 0x%02x\r\n", sn, getSn_SR(sn));
+
+    uint8_t snd[NET_SND_BUFFER_SIZE];
+    size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[sn], snd, NET_SND_BUFFER_SIZE, 0);
+
+    switch (getSn_SR(sn))
+    {
+
+    case SOCK_UDP:
+    {
+
+        if (len_snd > 0)
+            sendto(sn, snd, len_snd, remote_ip, remote_port);
+
+        if (getSn_IR(sn) & Sn_IR_RECV)
+            setSn_IR(sn, Sn_IR_RECV);
+
+        if (taked != pdTRUE)
+            len_received = 0;
+
+        do
+        {
+            size_t len_used = len_received ? net_rcv_override(sn, array, len_received) : 0;
+            if (len_used)
+            {
+                for (size_t i = 0; i < (len_received - len_used); i++)
+                    array[i] = array[i + len_used];
+
+                len_received -= len_used;
+                continue;
+            }
+
+            int32_t ret = getSn_RX_RSR(sn);
+            if (ret <= 0)
+                break;
+            uint16_t max_size = NET_RCV_BUFFER_SIZE - len_received;
+            int32_t len_rcv = recvfrom(sn, array + len_received, (ret >= max_size ? max_size : ret), remote_ip, &remote_port);
+            len_received += len_rcv;
+
+        } while (1);
+    }
+    break;
+
+    case SOCK_CLOSED:
+        socket(sn, Sn_MR_UDP, deviceMap.regs[REG_NET_PORT_0 + sn], 0x00);
+        xSemaphoreGive(xSemaphore);
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void tcp_server(uint8_t sn, BaseType_t taked)
+{
+    static uint8_t array[NET_RCV_BUFFER_SIZE];
+    static size_t len_received = 0;
+
+    uint8_t snd[NET_SND_BUFFER_SIZE];
+    size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[sn], snd, NET_SND_BUFFER_SIZE, 0);
+
+    LOG_INFO("sn: %d, SR: 0x%02x\r\n", sn, getSn_SR(sn));
+
+    switch (getSn_SR(sn))
+    {
+
+    case SOCK_ESTABLISHED:
+
+        if (len_snd > 0)
+            send(sn, snd, len_snd);
+
+        if (getSn_IR(sn) & Sn_IR_CON)
+            setSn_IR(sn, Sn_IR_CON);
+
+        if (getSn_IR(sn) & Sn_IR_RECV)
+            setSn_IR(sn, Sn_IR_RECV);
+
+        if (taked != pdTRUE)
+            len_received = 0;
+
+        do
+        {
+            size_t len_used = len_received ? net_rcv_override(sn, array, len_received) : 0;
+            if (len_used)
+            {
+                for (size_t i = 0; i < (len_received - len_used); i++)
+                    array[i] = array[i + len_used];
+
+                len_received -= len_used;
+                continue;
+            }
+
+            int32_t ret = getSn_RX_RSR(sn);
+            if (ret <= 0)
+                break;
+            uint16_t max_size = NET_RCV_BUFFER_SIZE - len_received;
+            int32_t len_rcv = recv(sn, array + len_received, (ret >= max_size ? max_size : ret));
+            len_received += len_rcv;
+
+        } while (1);
+
+        break;
+    case SOCK_CLOSE_WAIT:
+        if (getSn_IR(sn) & Sn_IR_DISCON)
+            setSn_IR(sn, Sn_IR_DISCON);
+        disconnect(sn);
+        break;
+
+    case SOCK_INIT:
+        listen(sn);
+        xSemaphoreGive(xSemaphore);
+        break;
+
+    case SOCK_CLOSED:
+        socket(sn, Sn_MR_TCP, deviceMap.regs[REG_NET_PORT_0 + sn], 0x00);
+        xSemaphoreGive(xSemaphore);
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void net_task(void *arg)
 {
 
     reg_wizchip_cris_cbfunc(cris_en, cris_ex);   // 注册用于进入和退出临界区的回调函数
@@ -178,89 +329,39 @@ void net_task(void *arg)
 
     reset_net();
 
-    if(getVERSIONR() != 0x04) {
+    while (getVERSIONR() != 0x04)
+    {
         LOG_ERROR("W5500 version error: 0x%02x\r\n", getVERSIONR());
-        return;
-    }
-
-    uint8_t mac[6] = {0x00, 0x22, 0x33, 0x44, 0x55, 0x66};
-    uint8_t gateway[4] = {192, 168, 1, 1};
-    uint8_t mask[4] = {255, 255, 255, 0};
-    uint8_t ip[4] = {192, 168, 1, 49};
-    setGAR(gateway);
-    setSUBR(mask);
-    setSHAR(mac);
-    setSIPR(ip);
-    get_common_regs();
-    for(uint8_t i = 0; i < 1; i++) {
         vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+    net_update();
+
+    get_common_regs();
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        vTaskDelay(pdMS_TO_TICKS(100));
         get_socket_regs(i);
     }
 
-    uint8_t remote_ip[4] = {192, 168, 1, 4};
-
-    LOG_INFO("socket %d\r\n", socket(1, Sn_MR_TCP, 0, Sn_MR_ND));
-    LOG_INFO("connect %d\r\n", connect(1, remote_ip, 5000));
-
-    //   switch (getSn_SR(0))
-    //         {
-    //         case SOCK_CLOSED:
-    //             socket(0, Sn_MR_TCP, 5000, Sn_MR_ND);
-    //             break;
-
-    //         case SOCK_INIT:
-    //             connect(0, remote_ip, remote_port);
-    //             break;
-
-    //         case SOCK_ESTABLISHED:
-    //             if (getSn_IR(0) & Sn_IR_CON)
-    //             {
-    //                 setSn_IR(0, Sn_IR_CON);
-    //             }
-
-    //             len = getSn_RX_RSR(0);
-    //             if (len > 0)
-    //             {
-    //                 recv(0, buff, len);
-    //                 buff[len] = 0x00;
-    //                 printf("%s\r\n", buff);
-    //                 send(0, buff, len);
-    //             }
-    //             break;
-
-    //         case SOCK_CLOSE_WAIT:
-    //             close(0);
-    //             break;
-    //         }
-
-    uint8_t buff[100];
-
+    xSemaphoreGive(xSemaphore);
     while (1)
     {
-        // LOG_INFO("PHYCFGR: 0x%02x\r\n", getPHYCFGR());
-        // get_socket_regs(0);
 
-        // GPIO_ResetBits(GPIOA, GPIO_Pin_8);
-        // vTaskDelay(pdMS_TO_TICKS(500));
-
-        // GPIO_SetBits(GPIOA, GPIO_Pin_8);
-        vTaskDelay(pdMS_TO_TICKS(100));
-
-        if (getSn_IR(1) & Sn_IR_CON)
-            setSn_IR(1, Sn_IR_CON);
-
-        uint16_t len = getSn_RX_RSR(1);
-        if(len == 0)
-            continue;
-        memset(buff, 0, sizeof(buff));
-        recv(1, buff, len);
-        LOG_INFO("%s\r\n", buff);
-        send(1, buff, len);
+        BaseType_t taked = xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(3000));
+        // for (uint8_t i = 0; i < 8; i++)
+        //     udp(i, taked);
+        udp(0, taked);
+        tcp_server(1, taked);
     }
 }
 
 void net_init()
 {
+    deviceMap = *(DeviceMap *)(FLASH_ADDR);
+
+    xSemaphore = xSemaphoreCreateBinary();
+    for (int32_t i = 0; i < SOCKET_END; i++)
+        xStreamBufferSnd[i] = xStreamBufferCreate(NET_SND_BUFFER_SIZE, 1);
 
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
@@ -303,8 +404,6 @@ void net_init()
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;     // 设置引脚模式为通用推挽模拟上拉输入
     GPIO_Init(GPIOB, &GPIO_InitStructure);            // 调用库函数，初始化GPIO
 
-    // spi_init();
-
     // 配置外部中断线
     GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource10); // 连接PB10到EXTI10
 
@@ -315,7 +414,7 @@ void net_init()
     EXTI_InitStructure.EXTI_LineCmd = ENABLE;
     EXTI_Init(&EXTI_InitStructure);
 
-    // 4. 配置NVIC（中断控制器）
+    // 配置NVIC（中断控制器）
     NVIC_InitTypeDef NVIC_InitStructure;
     NVIC_InitStructure.NVIC_IRQChannel = EXTI15_10_IRQn;      // PB10使用EXTI15_10中断通道
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 5; // 抢占优先级
@@ -323,7 +422,14 @@ void net_init()
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
 
-    // NVIC_EnableIRQ(IRQn_Type IRQn);
-
     xTaskCreate(net_task, NET_TASK_NAME, NET_TASK_STACK_SIZE, NULL, NET_TASK_PRIORITY, NULL);
+}
+
+void net_snd(uint8_t sn, const void *array, size_t len)
+{
+    size_t len_snd = (len <= 0) ? strlen(array) : len;
+    taskENTER_CRITICAL();
+    xStreamBufferSend(xStreamBufferSnd[sn], array, len_snd, 0);
+    xSemaphoreGive(xSemaphore);
+    taskEXIT_CRITICAL();
 }

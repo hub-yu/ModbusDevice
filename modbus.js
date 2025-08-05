@@ -126,9 +126,21 @@
           { name: "广播获取所有输入", str: JSON.stringify({"slaveId":0, "functionCode":2, "address":0, "number":32})},
           { name: "广播老化测试", fun: "test"},
 
-          { name: "广播查询设备ID", str: JSON.stringify({"slaveId":0, "functionCode":3, "address":0, "number":0x0001})},
-          { name: "广播设置ID=3", str: JSON.stringify({"slaveId":0, "functionCode":6, "address":0, "number":0x0003})},
-          { name: "广播设置ID=17", str: JSON.stringify({"slaveId":0, "functionCode":6, "address":0, "number":0x0011})},
+          { name: "广播查询设备ID", str: JSON.stringify({"slaveId":0, "functionCode":3, "address":0, "number":1})},
+          { name: "广播设置ID=3", str: JSON.stringify({"slaveId":0, "functionCode":6, "address":0, "number":3})},
+          { name: "广播设置ID=17", str: JSON.stringify({"slaveId":0, "functionCode":6, "address":0, "number":17})},
+
+          { name: "广播复位", str: JSON.stringify({"slaveId":0, "functionCode":6, "address":1, "number":1}), title: "保持寄存器修改后，需要重新上电或复位生效"},
+          { name: "广播获取ip", str: JSON.stringify({"slaveId":0, "functionCode":3, "address":8, "number":4})},
+          { name: "广播获取gw", str: JSON.stringify({"slaveId":0, "functionCode":3, "address":12, "number":4})},
+          { name: "广播获取mask", str: JSON.stringify({"slaveId":0, "functionCode":3, "address":16, "number":4})},
+          { name: "广播获取mac", str: JSON.stringify({"slaveId":0, "functionCode":3, "address":20, "number":6})},
+          { name: "广播获取udp端口", str: JSON.stringify({"slaveId":0, "functionCode":3, "address":26, "number":1})},
+          { name: "广播获取tcp服务器端口", str: JSON.stringify({"slaveId":0, "functionCode":3, "address":27, "number":1})},
+
+          { name: "广播设置ip", str: JSON.stringify({"slaveId":0, "functionCode":16, "address":8, "number":4, "bytes": 8, "data":[0, 192, 0, 168, 0, 1, 0, 50]}), title: "设置ip为 192.168.1.50"},
+
+          
 
 
           { name: "打开1", str: JSON.stringify({"slaveId":17, "functionCode":5, "address":0, "number":0xff00})},

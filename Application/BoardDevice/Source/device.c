@@ -275,6 +275,9 @@ void device_task(void *param)
 {
     static uint16_t out_pin[] = {GPIO_Pin_4, GPIO_Pin_5, GPIO_Pin_6, GPIO_Pin_7, GPIO_Pin_9, GPIO_Pin_10};
 
+    for (int32_t i = 0; i < MODBUS_REG_OUT_NUMBER; i++)
+        GPIO_WriteBit(GPIOA, out_pin[i], Bit_SET);
+
     vTaskDelay(pdMS_TO_TICKS(500)); // 避免电源未稳定时的抖动
 
     // 从掉电存储中读取设备状态
@@ -288,7 +291,7 @@ void device_task(void *param)
             GPIO_WriteBit(GPIOA, out_pin[i], (deviceMap.reg_out & (1 << i)) ? Bit_RESET : Bit_SET);
 
         Modbus modbus;
-        if (xQueueReceive(xQueue, &modbus, pdMS_TO_TICKS(1000)) != pdPASS)
+        if (xQueueReceive(xQueue, &modbus, pdMS_TO_TICKS(2000)) != pdPASS)
         {
             flash_sync();
             continue;
