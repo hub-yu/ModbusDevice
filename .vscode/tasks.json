@@ -18,11 +18,13 @@
                 "-G",
                 "MinGW Makefiles",
                 "..",
-                "-DFREERTOS=ON",              
-                // "-DDEVICE_TYPE=STM32F030F4P6",
-                // "-DBOARD_TYPE=BOARD_DEVICE"
-                "-DDEVICE_TYPE=STM32F103C8T6",               
-                "-DBOARD_TYPE=BOARD_SOCKET"
+                "-DFREERTOS=ON",
+                // "-DDEVICE_TYPE=STM32F070F6P6",          
+                "-DDEVICE_TYPE=STM32F030F4P6",
+                "-DBOARD_TYPE=BOARD_DEVICE"
+                // "-DWIZNET_DRIVER=ON",
+                // "-DDEVICE_TYPE=STM32F103C8T6",               
+                // "-DBOARD_TYPE=BOARD_SOCKET"
             ],
             "dependsOn": [
                 "clean"
@@ -32,8 +34,8 @@
         {
             "label": "make",
             "type": "shell",
-            "command": "make -j32",
-            // "command": "make",
+            // "command": "make -j32",
+            "command": "make",
             "group": {
                 "kind": "build",
                 "isDefault": true

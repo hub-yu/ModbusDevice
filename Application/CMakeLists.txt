@@ -37,6 +37,13 @@ if(${DEVICE_TYPE} MATCHES "STM32F103C8T6")
 
 endif()
 
+if(${WIZNET_DRIVER})
+    include_directories(
+        ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Ethernet
+        ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Ethernet/W5500
+    )
+endif()
+
 
 #设备
 if(${BOARD_TYPE} MATCHES "BOARD_DEVICE") 

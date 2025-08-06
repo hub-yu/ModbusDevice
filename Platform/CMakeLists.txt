@@ -80,6 +80,20 @@ if(${DEVICE_TYPE} MATCHES "STM32F103C8T6")
 endif()
 
 
+if(${WIZNET_DRIVER})
+    include_directories(
+        ./ioLibrary_Driver/Ethernet
+        ./ioLibrary_Driver/Ethernet/W5500
+    )
+
+    file(GLOB WIZNET_LIST
+        ./ioLibrary_Driver/Ethernet/W5500/w5500.c
+        ./ioLibrary_Driver/Ethernet/socket.c
+        ./ioLibrary_Driver/Ethernet/wizchip_conf.c
+    )
+
+endif()
+
 
 #设置启动文件变量
 if(${DEVICE_TYPE} MATCHES "STM32F070F6P6")
@@ -106,6 +120,7 @@ add_library(platform STATIC
     ${SRC_LIST}
     ${STD_LIST}
     ${FREERTOS_LIST}
+    ${WIZNET_LIST}
 )
 
 #设置库输出的名称

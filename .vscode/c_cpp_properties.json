@@ -12,11 +12,11 @@
                 "${workspaceFolder}/Platform/FreeRTOS-Kernel/portable/GCC/ARM_CM0",
                 "${workspaceFolder}/Platform/FreeRTOS-Kernel/portable/GCC/ARM_CM3",
                 "${workspaceFolder}/Platform/FreeRTOS-Kernel/portable/GCC/ARM_CM3_MPU",
-                "${workspaceFolder}/Platform/FreeRTOS-Kernel",                
+                "${workspaceFolder}/Platform/FreeRTOS-Kernel",    
+                "${workspaceFolder}/Platform/ioLibrary_Driver/Ethernet",
+                "${workspaceFolder}/Platform/ioLibrary_Driver/Ethernet/W5500",          
                 // "${workspaceFolder}/Application/BoardDevice/Include",
                 "${workspaceFolder}/Application/BoardSocket/Include",
-                "${workspaceFolder}/Application/ioLibrary_Driver/Ethernet",
-                "${workspaceFolder}/Application/ioLibrary_Driver/Ethernet/W5500",
                 "${workspaceFolder}/Application/Modbus",
                 "${workspaceFolder}/Application/Log"
 

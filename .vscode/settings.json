@@ -108,7 +108,8 @@
         "croutine.h": "c",
         "deque": "c",
         "unordered_map": "c",
-        "mpu_wrappers.h": "c"
+        "mpu_wrappers.h": "c",
+        "stm32f0xx_i2c_cpal.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": false,
     "C_Cpp.errorSquiggles": "disabled"

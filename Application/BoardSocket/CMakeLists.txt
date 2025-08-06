@@ -25,15 +25,12 @@ add_definitions(-DBOOT_VERSION_PATCH=${BOOT_VERSION_PATCH})
 #添加头文件搜索路径
 include_directories(
     ./Include
-     ${PROJECT_SOURCE_DIR}/Application/ioLibrary_Driver/Ethernet
-     ${PROJECT_SOURCE_DIR}/Application/ioLibrary_Driver/Ethernet/W5500
      ${PROJECT_SOURCE_DIR}/Application/Modbus
      ${PROJECT_SOURCE_DIR}/Application/Log
 )
 
 aux_source_directory(./Source SRC_LIST)
-aux_source_directory(${PROJECT_SOURCE_DIR}/Application/ioLibrary_Driver/Ethernet INTERNET_LIST)
-aux_source_directory(${PROJECT_SOURCE_DIR}/Application/ioLibrary_Driver/Ethernet/W5500 W5500_LIST)
+
 aux_source_directory(${PROJECT_SOURCE_DIR}/Application/Modbus/ MODBUS_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/Application/Log/ LOG_LIST)
 
@@ -53,7 +50,7 @@ set(CMAKE_EXE_LINKER_FLAGS " -specs=rdimon.specs --specs=nano.specs -specs=nosys
 
 
 #生成目标文件
-add_executable(app.elf main.c ${SRC_LIST} ${INTERNET_LIST} ${W5500_LIST} ${MODBUS_LIST} ${LOG_LIST})
+add_executable(app.elf main.c ${SRC_LIST} ${INTERNET_LIST} ${MODBUS_LIST} ${LOG_LIST})
 
 # 确保可执行文件依赖于动态库
 add_dependencies(app.elf platform)
