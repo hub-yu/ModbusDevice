@@ -1,8 +1,9 @@
 set(VERSION_MAJOR "1")
-set(VERSION_MINOR "0")
+set(VERSION_MINOR "1")
 set(VERSION_PATCH "0")
 
 #APP
+# v1.1.0 移除对输出的掉电存储
 # v1.0.0 首次添加
 
 

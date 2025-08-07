@@ -256,14 +256,15 @@ void flash_sync()
     memcpy(temp_regs, (void *)deviceMap.regs, REG_END * sizeof(uint16_t));
 
     // 没有变化，不需要写入
-    if (map.reg_out == deviceMap.reg_out &&
+    if (
+        // map.reg_out == deviceMap.reg_out &&
         memcmp(map.regs, temp_regs, REG_END * sizeof(uint16_t)) == 0)
         return;
 
     FLASH_Unlock();
     FLASH_ErasePage(FLASH_ADDR);
 
-    FLASH_ProgramWord(FLASH_ADDR, deviceMap.reg_out);
+    // FLASH_ProgramWord(FLASH_ADDR, deviceMap.reg_out);
 
     for (int32_t i = 0; i < REG_END; i++)
         FLASH_ProgramHalfWord(FLASH_ADDR + 4 + 4 + 2 * MODBUS_REG_VAL_NUMBER + i * 2, deviceMap.regs[i]);

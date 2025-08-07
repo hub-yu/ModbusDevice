@@ -17,6 +17,34 @@ set(CMAKE_OBJDUMP "arm-none-eabi-objdump")
 set(CMAKE_SIZE "arm-none-eabi-size")
 
 
+if(${BOARD_TYPE} MATCHES "BOARD_SOCKET")
+    add_definitions(-DUSE_STDPERIPH_DRIVER)
+
+    option(BOOT "build for boot!" OFF)
+    option(RELEASE "build for release!" OFF)
+    option(FREERTOS "FreeRTOS support" ON)
+    option(WIZNET_DRIVER "WizNET support" ON)
+
+    set(DEVICE_TYPE  "STM32F103C8T6")
+    # add_definitions(-DSTM32)
+    add_definitions(-DSTM32F10X_MD)
+endif()
+
+if(${BOARD_TYPE} MATCHES "BOARD_DEVICE")
+    add_definitions(-DUSE_STDPERIPH_DRIVER)
+    option(BOOT "build for boot!" OFF)
+    option(RELEASE "build for release!" OFF)
+    option(FREERTOS "FreeRTOS support" ON)
+    option(WIZNET_DRIVER "WizNET support" OFF)
+
+    set(DEVICE_TYPE  "STM32F030F4P6")
+    add_definitions(-DSTM32F030)
+
+    # set(DEVICE_TYPE  "STM32F070F6P6")
+    # add_definitions(-DSTM32F070x6)
+
+endif()
+
 if(${DEVICE_TYPE} MATCHES "STM32F030F4P6|STM32F070F6P6")
     # 编译相关选项
     set(MCU_FLAGS "-mcpu=cortex-m0 -mthumb -mfloat-abi=soft") 
@@ -37,11 +65,6 @@ if(${DEVICE_TYPE} MATCHES "STM32F103C8T6")
     set(CMAKE_ASM_FLAGS "${MCU_FLAGS} -x assembler-with-cpp")
 endif()
 
-option(BOOT "build for boot!" OFF)
-option(RELEASE "build for release!" OFF)
-option(FREERTOS "FreeRTOS support" OFF)
-
-
 if(RELEASE)
     message("build for release!")
     set(CMAKE_BUILD_TYPE "Release")
@@ -52,40 +75,6 @@ else()
     add_definitions(-DDEBUG)
 endif()
 
-if(BOOT)
-    message("build for boot!")
-    add_definitions(-DBOOT)
-else()
-    message("build for app!")
-endif()
-
-if(${DEVICE_TYPE} MATCHES "STM32")
-    add_definitions(-DSTM32)
-endif()
-
-# if(${DEVICE_TYPE} MATCHES "STM32F4") 
-#     add_definitions(-DSTM32F4)
-#     add_definitions(-DARM_MATH_CM4)
-
-# endif()
-
-# if(${DEVICE_TYPE} MATCHES "STM32F40|STM32F41") 
-#     add_definitions(-DSTM32F40_41xxx)
-# endif()
-
-if(${DEVICE_TYPE} MATCHES "STM32F070F6P6")
-    add_definitions(-DSTM32F070x6)
-endif()
-
-if(${DEVICE_TYPE} MATCHES "STM32F030F4P6")
-    add_definitions(-DSTM32F030)
-endif()
-
-if(${DEVICE_TYPE} MATCHES "STM32F103C8T6")
-    add_definitions(-DSTM32F10X_MD)
-endif()
-
-add_definitions(-DUSE_STDPERIPH_DRIVER)
 
 add_subdirectory(Platform) #平台库
 add_subdirectory(Application) #应用

@@ -18,13 +18,8 @@
                 "-G",
                 "MinGW Makefiles",
                 "..",
-                "-DFREERTOS=ON",
-                // "-DDEVICE_TYPE=STM32F070F6P6",          
-                "-DDEVICE_TYPE=STM32F030F4P6",
-                "-DBOARD_TYPE=BOARD_DEVICE"
-                // "-DWIZNET_DRIVER=ON",
-                // "-DDEVICE_TYPE=STM32F103C8T6",               
-                // "-DBOARD_TYPE=BOARD_SOCKET"
+                // "-DBOARD_TYPE=BOARD_DEVICE"  // 基于STM32F030F4P6T6的设备
+                "-DBOARD_TYPE=BOARD_SOCKET"     // 基于STM32F103C8T6的设备
             ],
             "dependsOn": [
                 "clean"
@@ -34,8 +29,8 @@
         {
             "label": "make",
             "type": "shell",
-            // "command": "make -j32",
-            "command": "make",
+            "command": "make -j32",
+            // "command": "make",
             "group": {
                 "kind": "build",
                 "isDefault": true
