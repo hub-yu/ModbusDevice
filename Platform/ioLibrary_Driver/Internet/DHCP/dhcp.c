@@ -94,8 +94,9 @@
 
 #define INFINITE_LEASETIME       0xffffffff	///< Infinite lease time
 
-#define OPT_SIZE                 312               /// Max OPT size of @ref RIP_MSG
-#define RIP_MSG_SIZE             (236+OPT_SIZE)    /// Max size of @ref RIP_MSG
+// 移动到头文件中 yulc---
+// #define OPT_SIZE                 312               /// Max OPT size of @ref RIP_MSG
+// #define RIP_MSG_SIZE             (236+OPT_SIZE)    /// Max size of @ref RIP_MSG
 
 /* 
  * @brief DHCP option and value (cf. RFC1533)

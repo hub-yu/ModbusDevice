@@ -75,6 +75,10 @@ extern "C" {
 
 #define DCHP_HOST_NAME           "WIZnet\0"
 
+// 移动到头文件中 yulc+++
+#define OPT_SIZE                 312               /// Max OPT size of @ref RIP_MSG
+#define RIP_MSG_SIZE             (236+OPT_SIZE)    /// Max size of @ref RIP_MSG
+
 /* 
  * @brief return value of @ref DHCP_run()
  */

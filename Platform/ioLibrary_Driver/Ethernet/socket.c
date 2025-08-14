@@ -476,6 +476,9 @@ static int8_t connect_IO_6 (uint8_t sn, uint8_t * addr, uint16_t port, uint8_t a
       {
          return SOCKERR_SOCKCLOSED;
       }
+      //非阻塞 yulc+++
+      if(getSn_SR(sn) != SOCK_INIT) 
+         break;   
    } 
    
    return SOCK_OK;
@@ -494,6 +497,9 @@ int8_t disconnect(uint8_t sn)
       if(sock_io_mode & (1<<sn)) return SOCK_BUSY;
       while(getSn_SR(sn) != SOCK_CLOSED)
       {
+         close(sn);  //yulc+++
+         return SOCKERR_TIMEOUT;
+
          if(getSn_IR(sn) & Sn_IR_TIMEOUT)
          {
             close(sn);

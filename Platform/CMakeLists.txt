@@ -84,12 +84,16 @@ if(${WIZNET_DRIVER})
     include_directories(
         ./ioLibrary_Driver/Ethernet
         ./ioLibrary_Driver/Ethernet/W5500
+        ./ioLibrary_Driver/Internet/DHCP
+        ./ioLibrary_Driver/Internet/DNS
     )
 
     file(GLOB WIZNET_LIST
         ./ioLibrary_Driver/Ethernet/W5500/w5500.c
         ./ioLibrary_Driver/Ethernet/socket.c
         ./ioLibrary_Driver/Ethernet/wizchip_conf.c
+        ./ioLibrary_Driver/Internet/DNS/dns.c
+        ./ioLibrary_Driver/Internet/DHCP/dhcp.c
     )
 
 endif()

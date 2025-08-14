@@ -165,7 +165,13 @@
 /* 将 configUSE_TIMERS 设置为 1 以在构建中包含软件定时器功能。
  * 将 0 设置为从构建中排除软件定时器功能。必须在构建中包含 FreeRTOS/source/timers.c 源文件，如果 configUSE_TIMERS 设置为 1。
  * 如果保持未定义，则默认为 0。参见 https://www.freertos.org/RTOS-software-timer.html。 */
+
+ #ifdef STM32F10X_MD
+#define configUSE_TIMERS 1
+#else
 #define configUSE_TIMERS 0
+#endif
+
 
 /* configTIMER_TASK_PRIORITY 设置定时器任务使用的优先级。仅在 configUSE_TIMERS 设置为 1 时使用。
  * 定时器任务是标准 FreeRTOS 任务，因此其优先级与其他任务一样设置。
@@ -217,7 +223,7 @@
  * 此值默认为 4096 字节，但必须根据每个应用程序进行调整。
  * 注意，堆将出现在 .bss 段中。参见 https://www.freertos.org/a00111.html。 */
 #ifdef STM32F10X_MD
-#define configTOTAL_HEAP_SIZE (16 * 1024)
+#define configTOTAL_HEAP_SIZE (13 * 1024)
 #else
 #define configTOTAL_HEAP_SIZE (2 * 1024 - 100)
 #endif

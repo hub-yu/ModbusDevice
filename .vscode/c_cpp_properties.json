@@ -15,6 +15,8 @@
                 "${workspaceFolder}/Platform/FreeRTOS-Kernel",    
                 "${workspaceFolder}/Platform/ioLibrary_Driver/Ethernet",
                 "${workspaceFolder}/Platform/ioLibrary_Driver/Ethernet/W5500",          
+                "${workspaceFolder}/Platform/ioLibrary_Driver/Internet/DHCP",  
+                "${workspaceFolder}/Platform/ioLibrary_Driver/Internet/DNS",  
                 // "${workspaceFolder}/Application/BoardDevice/Include",
                 "${workspaceFolder}/Application/BoardSocket/Include",
                 "${workspaceFolder}/Application/Modbus",

@@ -26,11 +26,12 @@ int main(void)
     device_init();
 
     led_init();
-    uart_init();
+    const uint32_t baudrate[] = {119200, 57600, 19200, 9600};
+    uart_init(baudrate[FLASH_REG_CONFIG & REG_CONFIG_BAUDRATE]);
     net_init();
 
     // 是否开启串口日志输出
-    if (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_15) == Bit_RESET)
+    if ((FLASH_REG_CONFIG & REG_CONFIG_LOG) ||(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_15) == Bit_RESET) )
         LogSetHook(consoleHook);
 
     LOG_INFO("##############################\r\n");

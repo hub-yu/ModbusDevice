@@ -94,7 +94,7 @@ static void uart_task(void *param)
     }
 }
 
-void uart_init()
+void uart_init(uint32_t baudrate)
 {
     xStreamBufferSnd = xStreamBufferCreate(UART_SND_BUFFER_SIZE, 1);
     xStreamBufferRcv = xStreamBufferCreate(UART_RCV_BUFFER_SIZE, 1);
@@ -121,7 +121,7 @@ void uart_init()
 
     USART_DeInit(USART1);
     USART_InitTypeDef USART_InitStruct = {
-        .USART_BaudRate = UART_BAUD_RATE,                            // 设置波特率
+        .USART_BaudRate = baudrate,                                  // 设置波特率
         .USART_WordLength = USART_WordLength_8b,                     // 8位数据位
         .USART_StopBits = USART_StopBits_1,                          // 1个停止位
         .USART_Parity = USART_Parity_No,                             // 无奇偶校验

@@ -41,7 +41,7 @@ int32_t modebus_deserilize(Modbus *modbus, const uint8_t *data, int32_t len)
         modbus->reg = MODBUS_TO_UINT16(data[2], data[3]);
         modbus->num = MODBUS_TO_UINT16(data[4], data[5]);
         modbus->length = 0;
-        memset(modbus->data, 0, 20);
+        memset(modbus->data, 0, MAX_DATA_LEN);
 
         return 8;
     }
@@ -79,13 +79,16 @@ int32_t modebus_serilize(const Modbus *modbus, uint8_t *data)
 {
     int32_t length = 0;
 
+    if (modbus->length > MAX_DATA_LEN)
+        return 0;
+
     switch (modbus->cmd)
     {
 
     case MODBUS_CMD_GET_OUT:
     case MODBUS_CMD_GET_IN:
-    case MODBUS_CMD_GET_VAL:  
-    case MODBUS_CMD_GET_REG:  
+    case MODBUS_CMD_GET_VAL:
+    case MODBUS_CMD_GET_REG:
         data[0] = modbus->addr;
         data[1] = modbus->cmd;
         data[2] = modbus->length;
@@ -113,9 +116,11 @@ int32_t modebus_serilize(const Modbus *modbus, uint8_t *data)
         data[4] = MODBUS_FROM_UINT16_HIGH(modbus->num);
         data[5] = MODBUS_FROM_UINT16_LOW(modbus->num);
         length = 6;
-        // data[6] = modbus->length;
-        // memcpy(data + 7, modbus->data, modbus->length);
-        // length = modbus->length + 7;
+        if(modbus->from == 255) {
+        data[6] = modbus->length;
+        memcpy(data + 7, modbus->data, modbus->length);
+        length = modbus->length + 7;
+        }
         break;
 
     default:

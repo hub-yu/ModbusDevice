@@ -8,6 +8,8 @@
 #define MODBUS_FROM_UINT16_HIGH(val) (val >> 8)
 #define MODBUS_FROM_UINT16_LOW(val) (val & 0xff)
 
+#define MAX_DATA_LEN (64)
+
 typedef enum
 {
     MODBUS_CMD_GET_OUT = 1,       // 00001-09999
@@ -29,7 +31,7 @@ typedef struct Modbus
     uint16_t reg;   // register address
     uint16_t num;   // number of registers or values
     uint8_t length; // data length
-    uint8_t data[20];   // data buffer
+    uint8_t data[MAX_DATA_LEN];   // data buffer
     // uint16_t crc;   // crc
 } Modbus;
 #pragma pack(pop)

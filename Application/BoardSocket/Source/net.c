@@ -6,14 +6,24 @@
 #include "task.h"
 #include "stream_buffer.h"
 #include "semphr.h"
+#include "timers.h"
 
 #include "w5500.h"
 #include "socket.h"
 #include "wizchip_conf.h"
-#include "device.h"
+#include "dhcp.h"
+#include "dns.h"
 
+#include "device.h"
+#include "modbus.h"
+
+static TimerHandle_t xTimer;
 static SemaphoreHandle_t xSemaphore;
 static StreamBufferHandle_t xStreamBufferSnd[SOCKET_END];
+static uint8_t rcv_buf[SOCKET_END][NET_RCV_BUFFER_SIZE] = {};
+static size_t rcv_len[SOCKET_END] = {};
+static uint64_t ms[SOCKET_END] = {};
+
 static DeviceMap deviceMap;
 
 void EXTI15_10_IRQHandler(void)
@@ -46,10 +56,12 @@ static uint16_t spi_rw(uint16_t data)
 
 static void cris_en()
 {
+    // taskENTER_CRITICAL();
 }
 
 static void cris_ex()
 {
+    // taskEXIT_CRITICAL();
 }
 
 static void cs_sel()
@@ -108,7 +120,7 @@ static void get_common_regs()
     LOG_INFO("IR: 0x%02x\r\n", getIR());             // 状态中断标志
     LOG_INFO("IMR: 0x%02x\r\n", getIMR());           // 状态中断掩码
     LOG_INFO("SIR: 0x%02x\r\n", getSIR());           // socket中断标志
-    setSIMR(0xff);
+
     LOG_INFO("SIMR: 0x%02x\r\n", getSIMR()); // socket中断掩码
     LOG_INFO("RTR: 0x%04x\r\n", getRTR());   // 重发延时 100us × RTR
     LOG_INFO("RCR: 0x%02x\r\n", getRCR());   // 重发次数 RCR + 1
@@ -140,7 +152,7 @@ static void get_socket_regs(uint8_t ch)
     // setSn_IR(ch, Sn_IR_RECV);
     LOG_INFO("ch[%d] IR: 0x%02x\r\n", ch, getSn_IR(ch)); // Socket n Interrupt Register
     LOG_INFO("ch[%d] SR: 0x%02x\r\n", ch, getSn_SR(ch)); // Socket n Status Register
-    setSn_IMR(ch, Sn_IR_RECV | Sn_IR_DISCON | Sn_IR_CON);
+
     // setSn_IMR(ch, Sn_IR_RECV);
     LOG_INFO("ch[%d] IMR: 0x%02x\r\n", ch, getSn_IMR(ch)); // Socket n Interrupt Mask
     LOG_INFO("ch[%d] PORT: %d\r\n", ch, getSn_PORT(ch));   // Socket n Source Port Register
@@ -177,72 +189,194 @@ static void get_socket_regs(uint8_t ch)
     LOG_INFO("ch[%d] TxMAX: 0X%02x\r\n", ch, getSn_TxMAX(ch)); //
 }
 
-
 static void net_update()
 {
-    uint8_t mac[6] = {deviceMap.regs[REG_NET_MAC_0], deviceMap.regs[REG_NET_MAC_1], deviceMap.regs[REG_NET_MAC_2], deviceMap.regs[REG_NET_MAC_3], deviceMap.regs[REG_NET_MAC_4], deviceMap.regs[REG_NET_MAC_5]};
-    uint8_t gateway[4] = {deviceMap.regs[REG_NET_GATEWAY_0], deviceMap.regs[REG_NET_GATEWAY_1], deviceMap.regs[REG_NET_GATEWAY_2], deviceMap.regs[REG_NET_GATEWAY_3]};
-    uint8_t mask[4] = {deviceMap.regs[REG_NET_MASK_0], deviceMap.regs[REG_NET_MASK_1], deviceMap.regs[REG_NET_MASK_2], deviceMap.regs[REG_NET_MASK_3]};
-    uint8_t ip[4] = {deviceMap.regs[REG_NET_IP_0], deviceMap.regs[REG_NET_IP_1], deviceMap.regs[REG_NET_IP_2], deviceMap.regs[REG_NET_IP_3]};
-    setSHAR(mac);
-    setGAR(gateway);
-    setSUBR(mask);
-    setSIPR(ip);
+    setSHAR(deviceMap.regs.net_mac);
+    setGAR(deviceMap.regs.net_gateway);
+    setSUBR(deviceMap.regs.net_mask);
+    setSIPR(deviceMap.regs.net_ip);
 }
 
-static void udp(uint8_t sn, BaseType_t taked)
+static void timer_callback(TimerHandle_t xTimer)
 {
-    static uint8_t array[NET_RCV_BUFFER_SIZE];
-    static size_t len_received = 0;
-    static uint8_t remote_ip[4] = {192, 168, 1, 4};
-    static uint16_t remote_port = 5000;
+    DHCP_time_handler(); // 处理DHCP超时
+    DNS_time_handler();  // 处理DNS超时
+}
 
-    LOG_INFO("sn: %d, SR: 0x%02x\r\n", sn, getSn_SR(sn));
+static int32_t dhcp(uint8_t n)
+{
+    static uint8_t buf[RIP_MSG_SIZE];
+    static uint8_t need_init = 1;
+
+    if (need_init)
+    {
+        // 关闭该通道中断
+        uint8_t simr = getSIMR();
+        simr &= ~(1 << n);
+        setSIMR(simr);
+
+        DHCP_init(n, buf);
+        need_init = 0;
+    }
+    LOG_INFO("channel: %d, SR: 0x%02x\r\n", n, getSn_SR(n));
+
+    uint8_t state = DHCP_run();
+    LOG_INFO("DHCP state %d, Leasetime %d\r\n", state, getDHCPLeasetime());
+
+    uint8_t ip[4] = {};
+    uint8_t gw[4] = {};
+    uint8_t sn[4] = {};
+    uint8_t dns[4] = {};
+
+    getIPfromDHCP(ip);
+    getGWfromDHCP(gw);
+    getSNfromDHCP(sn);
+    getDNSfromDHCP(dns);
+
+    if ((ip[0] || ip[1] || ip[2] || ip[3]) &&
+        ((deviceMap.regs.net_ip[0] != ip[0]) ||
+         (deviceMap.regs.net_ip[1] != ip[1]) ||
+         (deviceMap.regs.net_ip[2] != ip[2]) ||
+         (deviceMap.regs.net_ip[3] != ip[3])))
+    {
+        getIPfromDHCP(deviceMap.regs.net_ip);
+        LOG_INFO("DHCP IP %d.%d.%d.%d\r\n", deviceMap.regs.net_ip[0], deviceMap.regs.net_ip[1], deviceMap.regs.net_ip[2], deviceMap.regs.net_ip[3]);
+
+        Modbus modbus = {
+            .from = 255,
+            .addr = 0,
+            .cmd = MODBUS_CMD_SET_REG_MULT,
+            .reg = REG_IP,
+            .num = 2,
+            .length = 4,
+            .data = {ip[0], ip[1], ip[2], ip[3]}};
+
+        uint8_t data[20] = {};
+        int32_t len = modebus_serilize(&modbus, data);
+
+        net_rcv_override(255, data, len);
+    }
+
+    if ((gw[0] || gw[1] || gw[2] || gw[3]) &&
+        ((deviceMap.regs.net_gateway[0] != gw[0]) ||
+         (deviceMap.regs.net_gateway[1] != gw[1]) ||
+         (deviceMap.regs.net_gateway[2] != gw[2]) ||
+         (deviceMap.regs.net_gateway[3] != gw[3])))
+    {
+        getGWfromDHCP(deviceMap.regs.net_gateway);
+        LOG_INFO("DHCP GW %d.%d.%d.%d\r\n", deviceMap.regs.net_gateway[0], deviceMap.regs.net_gateway[1], deviceMap.regs.net_gateway[2], deviceMap.regs.net_gateway[3]);
+
+        Modbus modbus = {
+            .from = 255,
+            .addr = 0,
+            .cmd = MODBUS_CMD_SET_REG_MULT,
+            .reg = REG_GATEWAY,
+            .num = 2,
+            .length = 4,
+            .data = {gw[0], gw[1], gw[2], gw[3]}};
+
+        uint8_t data[20] = {};
+        int32_t len = modebus_serilize(&modbus, data);
+
+        net_rcv_override(255, data, len);
+    }
+
+    if ((sn[0] || sn[1] || sn[2] || sn[3]) &&
+        ((deviceMap.regs.net_mask[0] != sn[0]) ||
+         (deviceMap.regs.net_mask[1] != sn[1]) ||
+         (deviceMap.regs.net_mask[2] != sn[2]) ||
+         (deviceMap.regs.net_mask[3] != sn[3])))
+    {
+        getSNfromDHCP(deviceMap.regs.net_mask);
+        LOG_INFO("DHCP SN %d.%d.%d.%d\r\n", deviceMap.regs.net_mask[0], deviceMap.regs.net_mask[1], deviceMap.regs.net_mask[2], deviceMap.regs.net_mask[3]);
+        Modbus modbus = {
+            .from = 255,
+            .addr = 0,
+            .cmd = MODBUS_CMD_SET_REG_MULT,
+            .reg = REG_MASK,
+            .num = 2,
+            .length = 4,
+            .data = {sn[0], sn[1], sn[2], sn[3]}};
+
+        uint8_t data[20] = {};
+        int32_t len = modebus_serilize(&modbus, data);
+
+        net_rcv_override(255, data, len);
+    }
+
+    if ((dns[0] || dns[1] || dns[2] || dns[3]) &&
+        ((deviceMap.regs.net_dns[0] != dns[0]) ||
+         (deviceMap.regs.net_dns[1] != dns[1]) ||
+         (deviceMap.regs.net_dns[2] != dns[2]) ||
+         (deviceMap.regs.net_dns[3] != dns[3])))
+    {
+        getDNSfromDHCP(deviceMap.regs.net_dns);
+        LOG_INFO("DHCP DNS %d.%d.%d.%d\r\n", deviceMap.regs.net_dns[0], deviceMap.regs.net_dns[1], deviceMap.regs.net_dns[2], deviceMap.regs.net_dns[3]);
+
+        Modbus modbus = {
+            .from = 255,
+            .addr = 0,
+            .cmd = MODBUS_CMD_SET_REG_MULT,
+            .reg = REG_DNS,
+            .num = 2,
+            .length = 4,
+            .data = {dns[0], dns[1], dns[2], dns[3]}};
+
+        uint8_t data[20] = {};
+        int32_t len = modebus_serilize(&modbus, data);
+
+        net_rcv_override(255, data, len);
+    }
+
+    return state == DHCP_IP_LEASED ? 0 : 1;
+}
+
+static void udp(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len)
+{
+
+    LOG_INFO("[%d] udp, SR: 0x%02x\r\n", n, getSn_SR(n));
 
     uint8_t snd[NET_SND_BUFFER_SIZE];
-    size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[sn], snd, NET_SND_BUFFER_SIZE, 0);
+    size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[n], snd, NET_SND_BUFFER_SIZE, 0);
 
-    switch (getSn_SR(sn))
+    switch (getSn_SR(n))
     {
 
     case SOCK_UDP:
     {
 
         if (len_snd > 0)
-            sendto(sn, snd, len_snd, remote_ip, remote_port);
+            sendto(n, snd, len_snd, deviceMap.regs.netMap[n].remote_ip, deviceMap.regs.netMap[n].remote_port);
 
-        if (getSn_IR(sn) & Sn_IR_RECV)
-            setSn_IR(sn, Sn_IR_RECV);
-
-        if (taked != pdTRUE)
-            len_received = 0;
+        if (getSn_IR(n) & Sn_IR_RECV)
+            setSn_IR(n, Sn_IR_RECV);
 
         do
         {
-            size_t len_used = len_received ? net_rcv_override(sn, array, len_received) : 0;
+            size_t len_used = *rcv_len ? net_rcv_override(n, rcv_buf, *rcv_len) : 0;
             if (len_used)
             {
-                for (size_t i = 0; i < (len_received - len_used); i++)
-                    array[i] = array[i + len_used];
+                for (size_t i = 0; i < (*rcv_len - len_used); i++)
+                    rcv_buf[i] = rcv_buf[i + len_used];
 
-                len_received -= len_used;
+                *rcv_len -= len_used;
                 continue;
             }
 
-            int32_t ret = getSn_RX_RSR(sn);
+            int32_t ret = getSn_RX_RSR(n);
             if (ret <= 0)
                 break;
-            uint16_t max_size = NET_RCV_BUFFER_SIZE - len_received;
-            int32_t len_rcv = recvfrom(sn, array + len_received, (ret >= max_size ? max_size : ret), remote_ip, &remote_port);
-            len_received += len_rcv;
+            uint16_t max_size = NET_RCV_BUFFER_SIZE - *rcv_len;
+            int32_t len_rcv = recvfrom(n, rcv_buf + *rcv_len, (ret >= max_size ? max_size : ret), deviceMap.regs.netMap[n].remote_ip, &deviceMap.regs.netMap[n].remote_port);
+            *rcv_len += len_rcv;
 
         } while (1);
     }
     break;
 
     case SOCK_CLOSED:
-        socket(sn, Sn_MR_UDP, deviceMap.regs[REG_NET_PORT_0 + sn], 0x00);
-        xSemaphoreGive(xSemaphore);
+        socket(n, Sn_MR_UDP, deviceMap.regs.netMap[n].local_port, 0x00);
+        // xSemaphoreGive(xSemaphore);
         break;
 
     default:
@@ -250,69 +384,199 @@ static void udp(uint8_t sn, BaseType_t taked)
     }
 }
 
-static void tcp_server(uint8_t sn, BaseType_t taked)
+static void tcp_server(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
 {
-    static uint8_t array[NET_RCV_BUFFER_SIZE];
-    static size_t len_received = 0;
-
     uint8_t snd[NET_SND_BUFFER_SIZE];
-    size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[sn], snd, NET_SND_BUFFER_SIZE, 0);
+    size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[n], snd, NET_SND_BUFFER_SIZE, 0);
 
-    LOG_INFO("sn: %d, SR: 0x%02x\r\n", sn, getSn_SR(sn));
+    LOG_INFO("[%d] server, SR: 0x%02x\r\n", n, getSn_SR(n));
 
-    switch (getSn_SR(sn))
+    switch (getSn_SR(n))
     {
 
     case SOCK_ESTABLISHED:
 
         if (len_snd > 0)
-            send(sn, snd, len_snd);
+            send(n, snd, len_snd);
 
-        if (getSn_IR(sn) & Sn_IR_CON)
-            setSn_IR(sn, Sn_IR_CON);
+        if (getSn_IR(n) & Sn_IR_CON)
+            setSn_IR(n, Sn_IR_CON);
 
-        if (getSn_IR(sn) & Sn_IR_RECV)
-            setSn_IR(sn, Sn_IR_RECV);
-
-        if (taked != pdTRUE)
-            len_received = 0;
+        if (getSn_IR(n) & Sn_IR_RECV)
+            setSn_IR(n, Sn_IR_RECV);
 
         do
         {
-            size_t len_used = len_received ? net_rcv_override(sn, array, len_received) : 0;
+            size_t len_used = *rcv_len ? net_rcv_override(n, rcv_buf, *rcv_len) : 0;
             if (len_used)
             {
-                for (size_t i = 0; i < (len_received - len_used); i++)
-                    array[i] = array[i + len_used];
+                for (size_t i = 0; i < (*rcv_len - len_used); i++)
+                    rcv_buf[i] = rcv_buf[i + len_used];
 
-                len_received -= len_used;
+                *rcv_len -= len_used;
                 continue;
             }
 
-            int32_t ret = getSn_RX_RSR(sn);
+            int32_t ret = getSn_RX_RSR(n);
             if (ret <= 0)
+            {
+                if (pdTICKS_TO_MS(xTaskGetTickCount()) >= (*ms + deviceMap.regs.netMap[n].timeout_ms))
+                {
+                    disconnect(n);
+                    *rcv_len = 0;
+                }
                 break;
-            uint16_t max_size = NET_RCV_BUFFER_SIZE - len_received;
-            int32_t len_rcv = recv(sn, array + len_received, (ret >= max_size ? max_size : ret));
-            len_received += len_rcv;
+            }
+            uint16_t max_size = NET_RCV_BUFFER_SIZE - *rcv_len;
+            int32_t len_rcv = recv(n, rcv_buf + *rcv_len, (ret >= max_size ? max_size : ret));
+            *rcv_len += len_rcv;
+
+            *ms = pdTICKS_TO_MS(xTaskGetTickCount());
 
         } while (1);
 
         break;
     case SOCK_CLOSE_WAIT:
-        if (getSn_IR(sn) & Sn_IR_DISCON)
-            setSn_IR(sn, Sn_IR_DISCON);
-        disconnect(sn);
+        if (getSn_IR(n) & Sn_IR_DISCON)
+            setSn_IR(n, Sn_IR_DISCON);
+        disconnect(n);
         break;
 
     case SOCK_INIT:
-        listen(sn);
-        xSemaphoreGive(xSemaphore);
+        listen(n);
+        // xSemaphoreGive(xSemaphore);
+        break;
+    case SOCK_LISTEN:
+        *ms = pdTICKS_TO_MS(xTaskGetTickCount());
         break;
 
     case SOCK_CLOSED:
-        socket(sn, Sn_MR_TCP, deviceMap.regs[REG_NET_PORT_0 + sn], 0x00);
-        xSemaphoreGive(xSemaphore);
+        socket(n, Sn_MR_TCP, deviceMap.regs.netMap[n].local_port, 0x00);
+        // xSemaphoreGive(xSemaphore);
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void tcp_client(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
+{
+    uint8_t snd[NET_SND_BUFFER_SIZE];
+    size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[n], snd, NET_SND_BUFFER_SIZE, 0);
+
+    LOG_INFO("[%d] client, SR: 0x%02x\r\n", n, getSn_SR(n));
+
+    switch (getSn_SR(n))
+    {
+
+    case SOCK_ESTABLISHED:
+
+        if (len_snd > 0)
+            send(n, snd, len_snd);
+
+        if (getSn_IR(n) & Sn_IR_CON)
+            setSn_IR(n, Sn_IR_CON);
+
+        if (getSn_IR(n) & Sn_IR_RECV)
+            setSn_IR(n, Sn_IR_RECV);
+
+        do
+        {
+            size_t len_used = *rcv_len ? net_rcv_override(n, rcv_buf, *rcv_len) : 0;
+            if (len_used)
+            {
+                for (size_t i = 0; i < (*rcv_len - len_used); i++)
+                    rcv_buf[i] = rcv_buf[i + len_used];
+
+                *rcv_len -= len_used;
+                continue;
+            }
+
+            int32_t ret = getSn_RX_RSR(n);
+            if (ret <= 0)
+            {
+                if (pdTICKS_TO_MS(xTaskGetTickCount()) >= (*ms + deviceMap.regs.netMap[n].timeout_ms))
+                {
+                    disconnect(n);
+                    // close(n);
+                    *rcv_len = 0;
+                }
+                break;
+            }
+            uint16_t max_size = NET_RCV_BUFFER_SIZE - *rcv_len;
+            int32_t len_rcv = recv(n, rcv_buf + *rcv_len, (ret >= max_size ? max_size : ret));
+            *rcv_len += len_rcv;
+
+            *ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        } while (1);
+
+        break;
+    case SOCK_CLOSE_WAIT:
+        if (getSn_IR(n) & Sn_IR_DISCON)
+            setSn_IR(n, Sn_IR_DISCON);
+        disconnect(n);
+        break;
+
+    case SOCK_INIT:
+        *ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        connect(n, deviceMap.regs.netMap[n].remote_ip, deviceMap.regs.netMap[n].remote_port);
+        // xSemaphoreGive(xSemaphore);
+        break;
+
+    case SOCK_SYNSENT:
+        *ms = pdTICKS_TO_MS(xTaskGetTickCount());
+        break;
+
+    case SOCK_CLOSED:
+        close(n);
+        socket(n, Sn_MR_TCP, deviceMap.regs.netMap[n].local_port, 0x00);
+        // xSemaphoreGive(xSemaphore);
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void dns_domain(uint8_t n)
+{
+    LOG_INFO("[%d] dns domain \r\n", n);
+    // 关闭该通道中断
+    uint8_t simr = getSIMR();
+    simr &= ~(1 << n);
+    setSIMR(simr);
+    // 0xf7
+    uint8_t buf[MAX_DNS_BUF_SIZE];
+    DNS_init(n, buf);
+    int8_t ret = DNS_run(deviceMap.regs.net_dns, deviceMap.regs.netMap[n].remote_domain, deviceMap.regs.netMap[n].remote_ip);
+    if (ret == 1)
+    {
+        // 开启该通道中断
+        uint8_t simr = getSIMR();
+        simr |= (1 << n);
+        setSIMR(simr);
+        LOG_INFO("DNS ret %d, %s IP %d.%d.%d.%d\r\n", ret, deviceMap.regs.netMap[n].remote_domain, deviceMap.regs.netMap[n].remote_ip[0], deviceMap.regs.netMap[n].remote_ip[1], deviceMap.regs.netMap[n].remote_ip[2], deviceMap.regs.netMap[n].remote_ip[3]);
+        deviceMap.regs.netMap[n].type = REG_SOCKET_TYPE_TCPCLIENT;
+    }
+}
+
+static void sokit(int32_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
+{
+
+    switch (deviceMap.regs.netMap[n].type)
+    {
+    case REG_SOCKET_TYPE_UDP:
+        udp(n, rcv_buf, rcv_len);
+        break;
+    case REG_SOCKET_TYPE_TCPSERVER:
+        tcp_server(n, rcv_buf, rcv_len, ms);
+        break;
+    case REG_SOCKET_TYPE_TCPCLIENT:
+        tcp_client(n, rcv_buf, rcv_len, ms);
+        break;
+    case REG_SOCKET_TYPE_TCPCLIENT_DOMAIN:
+        dns_domain(n);
         break;
 
     default:
@@ -336,22 +600,38 @@ static void net_task(void *arg)
     }
     net_update();
 
-    get_common_regs();
-    for (uint8_t i = 0; i < 8; i++)
+    setSIMR(0xff);
+    setRTR(1000);
+    setRCR(2);
+    // When RTR = 2000(0x07D0), RCR = 8(0x0008),
+    // ARPTO = 2000 X 0.1ms X 9 = 1800ms = 1.8s
+    // TCPTO = (0x07D0+0x0FA0+0x1F40+0x3E80+0x7D00+0xFA00+0xFA00+0xFA00+0xFA00) X 0.1ms
+    //  = (2000 + 4000 + 8000 + 16000 + 32000 + ((8 - 4) X 64000)) X 0.1ms
+    //  = 318000 X 0.1ms = 31.8s
+
+    // get_common_regs();
+    for (uint8_t i = 0; i < SOCKET_END; i++)
     {
-        vTaskDelay(pdMS_TO_TICKS(100));
-        get_socket_regs(i);
+        setSn_IMR(i, Sn_IR_RECV);// | Sn_IR_DISCON | Sn_IR_CON);
+        setSn_KPALVTR(i, 1);
+        // vTaskDelay(pdMS_TO_TICKS(100));
+        // get_socket_regs(i);
     }
+    xTimerStart(xTimer, 0);
 
     xSemaphoreGive(xSemaphore);
+
     while (1)
     {
 
-        BaseType_t taked = xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(3000));
-        // for (uint8_t i = 0; i < 8; i++)
-        //     udp(i, taked);
-        udp(0, taked);
-        tcp_server(1, taked);
+        if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE)
+            memset(rcv_len, 0, SOCKET_END); // 清空接收缓冲区        
+
+        if (deviceMap.regs.config && dhcp(SOCKET_CHANNEL_7))
+            continue;
+
+        for (int32_t i = 0; i < SOCKET_CHANNEL_7; i++)
+            sokit(i, rcv_buf[i], rcv_len + i, ms + i);
     }
 }
 
@@ -421,6 +701,8 @@ void net_init()
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;        // 子优先级
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
+
+    xTimer = xTimerCreate("dhcp_timer", pdMS_TO_TICKS(1000), pdTRUE, NULL, timer_callback);
 
     xTaskCreate(net_task, NET_TASK_NAME, NET_TASK_STACK_SIZE, NULL, NET_TASK_PRIORITY, NULL);
 }

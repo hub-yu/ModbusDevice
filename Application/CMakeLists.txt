@@ -41,6 +41,8 @@ if(${WIZNET_DRIVER})
     include_directories(
         ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Ethernet
         ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Ethernet/W5500
+        ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Internet/DHCP
+        ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Internet/DNS
     )
 endif()
 
