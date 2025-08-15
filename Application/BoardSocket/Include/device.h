@@ -14,7 +14,7 @@
 #pragma pack(push, 1)
 typedef struct NetMap
 {
-    uint16_t type;              // 类型  rw 0:关闭 1:udp 2:tcpserver 3:tcpclient 4:tcpclient_domain     14 + 
+    uint16_t type;              // 类型  rw 0:关闭 1:udp 2:tcpserver 3:tcpclient 4:tcpclient_domain
     uint16_t timeout_ms;       // 超时重连  rw
     uint16_t local_port;       // 本地端口  rw
     uint16_t remote_port;      // 目标端口  rw
@@ -36,7 +36,7 @@ typedef struct RegMap
     uint8_t net_gateway[4]; // 网络网关寄存器  rw   10
     uint8_t net_dns[4];     // 网络DNS寄存器   rw   12
 
-    NetMap netMap[7]; // 网络通道寄存器
+    NetMap netMap[6]; // 网络通道寄存器
 } RegMap;
 #pragma pack(pop)
 
@@ -80,7 +80,7 @@ typedef struct DeviceMap
 #define REG_SOCKET_TYPE_UDP (1)             //UDP
 #define REG_SOCKET_TYPE_TCPSERVER (2)       //TCP SERVER
 #define REG_SOCKET_TYPE_TCPCLIENT (3)       //TCP CLIENT
-#define REG_SOCKET_TYPE_TCPCLIENT_DOMAIN (4)    //TCP CLIENT DOMAIN
+#define REG_SOCKET_TYPE_DOMAIN (1 << 4)     //DNS
 
 
 #define FLASH_ADDR (0x800fc00)

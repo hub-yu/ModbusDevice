@@ -43,6 +43,7 @@ if(${WIZNET_DRIVER})
         ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Ethernet/W5500
         ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Internet/DHCP
         ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Internet/DNS
+        ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Internet/httpServer
     )
 endif()
 

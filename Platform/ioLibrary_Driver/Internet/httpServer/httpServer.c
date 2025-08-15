@@ -14,7 +14,7 @@
 #endif
 
 #ifndef DATA_BUF_SIZE
-	#define DATA_BUF_SIZE		2048
+	#define DATA_BUF_SIZE		512
 #endif
 
 /*****************************************************************************

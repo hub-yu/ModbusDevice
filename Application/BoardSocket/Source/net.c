@@ -13,6 +13,7 @@
 #include "wizchip_conf.h"
 #include "dhcp.h"
 #include "dns.h"
+#include "httpUtil.h"
 
 #include "device.h"
 #include "modbus.h"
@@ -199,8 +200,9 @@ static void net_update()
 
 static void timer_callback(TimerHandle_t xTimer)
 {
-    DHCP_time_handler(); // 处理DHCP超时
-    DNS_time_handler();  // 处理DNS超时
+    DHCP_time_handler();       // 处理DHCP超时
+    DNS_time_handler();        // 处理DNS超时
+    httpServer_time_handler(); // 处理httpserver超时
 }
 
 static int32_t dhcp(uint8_t n)
@@ -329,6 +331,25 @@ static int32_t dhcp(uint8_t n)
     }
 
     return state == DHCP_IP_LEASED ? 0 : 1;
+}
+
+static int32_t web()
+{
+    // static st_http_request tx, rx;
+
+    // static uint8_t n = SOCKET_CHANNEL_6;
+    // static uint8_t need_init = 1;
+    // if (need_init)
+    // {
+    //     // 关闭该通道中断
+    //     uint8_t simr = getSIMR();
+    //     simr &= ~(1 << n);
+    //     setSIMR(simr);
+    //     httpServer_init(tx, rx, 1, &n);
+    //     need_init = 0;
+    // }
+    // httpServer_run(0);
+    // LOG_INFO("%d", get_httpServer_timecount());
 }
 
 static void udp(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len)
@@ -557,12 +578,17 @@ static void dns_domain(uint8_t n)
         simr |= (1 << n);
         setSIMR(simr);
         LOG_INFO("DNS ret %d, %s IP %d.%d.%d.%d\r\n", ret, deviceMap.regs.netMap[n].remote_domain, deviceMap.regs.netMap[n].remote_ip[0], deviceMap.regs.netMap[n].remote_ip[1], deviceMap.regs.netMap[n].remote_ip[2], deviceMap.regs.netMap[n].remote_ip[3]);
-        deviceMap.regs.netMap[n].type = REG_SOCKET_TYPE_TCPCLIENT;
+        deviceMap.regs.netMap[n].type &= ~REG_SOCKET_TYPE_DOMAIN;
     }
 }
 
 static void sokit(int32_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
 {
+    if (deviceMap.regs.netMap[n].type & REG_SOCKET_TYPE_DOMAIN)
+    {
+        dns_domain(n);
+        return;
+    }
 
     switch (deviceMap.regs.netMap[n].type)
     {
@@ -574,9 +600,6 @@ static void sokit(int32_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
         break;
     case REG_SOCKET_TYPE_TCPCLIENT:
         tcp_client(n, rcv_buf, rcv_len, ms);
-        break;
-    case REG_SOCKET_TYPE_TCPCLIENT_DOMAIN:
-        dns_domain(n);
         break;
 
     default:
@@ -601,19 +624,18 @@ static void net_task(void *arg)
     net_update();
 
     setSIMR(0xff);
-    setRTR(1000);
-    setRCR(2);
+    // setRTR(1000);
+    // setRCR(2);
     // When RTR = 2000(0x07D0), RCR = 8(0x0008),
     // ARPTO = 2000 X 0.1ms X 9 = 1800ms = 1.8s
     // TCPTO = (0x07D0+0x0FA0+0x1F40+0x3E80+0x7D00+0xFA00+0xFA00+0xFA00+0xFA00) X 0.1ms
     //  = (2000 + 4000 + 8000 + 16000 + 32000 + ((8 - 4) X 64000)) X 0.1ms
     //  = 318000 X 0.1ms = 31.8s
-
     // get_common_regs();
     for (uint8_t i = 0; i < SOCKET_END; i++)
     {
-        setSn_IMR(i, Sn_IR_RECV);// | Sn_IR_DISCON | Sn_IR_CON);
-        setSn_KPALVTR(i, 1);
+        setSn_IMR(i, Sn_IR_RECV); // | Sn_IR_DISCON | Sn_IR_CON);
+        // setSn_KPALVTR(i, 1);
         // vTaskDelay(pdMS_TO_TICKS(100));
         // get_socket_regs(i);
     }
@@ -625,12 +647,14 @@ static void net_task(void *arg)
     {
 
         if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE)
-            memset(rcv_len, 0, SOCKET_END); // 清空接收缓冲区        
+            memset(rcv_len, 0, SOCKET_END); // 清空接收缓冲区
 
-        if (deviceMap.regs.config && dhcp(SOCKET_CHANNEL_7))
+        if ((deviceMap.regs.config & REG_CONFIG_DHCP) && dhcp(SOCKET_CHANNEL_7))
             continue;
 
-        for (int32_t i = 0; i < SOCKET_CHANNEL_7; i++)
+        web();
+
+        for (int32_t i = 0; i < SOCKET_CHANNEL_6; i++)
             sokit(i, rcv_buf[i], rcv_len + i, ms + i);
     }
 }

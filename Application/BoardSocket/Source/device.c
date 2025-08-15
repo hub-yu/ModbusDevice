@@ -16,184 +16,42 @@ static QueueHandle_t xQueue;
 
 static DeviceMap deviceMap;
 
-static const uint8_t cover[] = {
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-
-};
+static uint8_t cover(uint16_t reg)
+{
+    switch (reg)
+    {
+    case REG_ID:
+    case REG_CMD:
+    case REG_CONFIG:
+    case REG_SOCKET_TYPE(SOCKET_CHANNEL_0):
+    case REG_SOCKET_TIMEOUT(SOCKET_CHANNEL_0):
+    case REG_SOCKET_LOCAL_PORT(SOCKET_CHANNEL_0):
+    case REG_SOCKET_REMOTE_PORT(SOCKET_CHANNEL_0):
+    case REG_SOCKET_TYPE(SOCKET_CHANNEL_1):
+    case REG_SOCKET_TIMEOUT(SOCKET_CHANNEL_1):
+    case REG_SOCKET_LOCAL_PORT(SOCKET_CHANNEL_1):
+    case REG_SOCKET_REMOTE_PORT(SOCKET_CHANNEL_1):
+    case REG_SOCKET_TYPE(SOCKET_CHANNEL_2):
+    case REG_SOCKET_TIMEOUT(SOCKET_CHANNEL_2):
+    case REG_SOCKET_LOCAL_PORT(SOCKET_CHANNEL_2):
+    case REG_SOCKET_REMOTE_PORT(SOCKET_CHANNEL_2):
+    case REG_SOCKET_TYPE(SOCKET_CHANNEL_3):
+    case REG_SOCKET_TIMEOUT(SOCKET_CHANNEL_3):
+    case REG_SOCKET_LOCAL_PORT(SOCKET_CHANNEL_3):
+    case REG_SOCKET_REMOTE_PORT(SOCKET_CHANNEL_3):
+    case REG_SOCKET_TYPE(SOCKET_CHANNEL_4):
+    case REG_SOCKET_TIMEOUT(SOCKET_CHANNEL_4):
+    case REG_SOCKET_LOCAL_PORT(SOCKET_CHANNEL_4):
+    case REG_SOCKET_REMOTE_PORT(SOCKET_CHANNEL_4):
+    case REG_SOCKET_TYPE(SOCKET_CHANNEL_5):
+    case REG_SOCKET_TIMEOUT(SOCKET_CHANNEL_5):
+    case REG_SOCKET_LOCAL_PORT(SOCKET_CHANNEL_5):
+    case REG_SOCKET_REMOTE_PORT(SOCKET_CHANNEL_5):
+        return 0;
+    default:
+        return 1;
+    }
+}
 
 inline uint16_t UShortCover(uint16_t data)
 {
@@ -233,7 +91,7 @@ static void regRestore()
                 },
                 // 通道1
                 {
-                    .type = REG_SOCKET_TYPE_UDP,       // 类型
+                    .type = REG_SOCKET_TYPE_TCPSERVER, // 类型
                     .local_port = 50001,               // 本地端口
                     .remote_port = 60001,              // 目标端口
                     .remote_ip = {192, 168, 1, 4},     // 目标地址
@@ -242,52 +100,42 @@ static void regRestore()
                 },
                 // 通道2
                 {
-                    .type = REG_SOCKET_TYPE_TCPSERVER,      // 类型
-                    .local_port = 50002,              // 本地端口
-                    .remote_port = 60002,             // 目标端口
-                    .remote_ip = {192, 168, 1, 4},    // 目标地址
+                    .type = REG_SOCKET_TYPE_TCPCLIENT, // 类型
+                    .local_port = 50002,               // 本地端口
+                    .remote_port = 60002,              // 目标端口
+                    .remote_ip = {192, 168, 1, 4},     // 目标地址
                     .remote_domain = "www.xiaopj.com", // 目标域名
-                    .timeout_ms = 10000               // 超时重连
+                    .timeout_ms = 10000                // 超时重连
                 },
                 // 通道3
                 {
-                    .type = REG_SOCKET_TYPE_TCPSERVER, // 类型
-                    .local_port = 50003,                      // 本地端口
-                    .remote_port = 60003,                     // 目标端口
-                    .remote_ip = {192, 168, 1, 4},            // 目标地址
-                    .remote_domain = "yulc.fun",              // 目标域名
-                    .timeout_ms = 10000                       // 超时重连
+                    // .type = REG_SOCKET_TYPE_TCPCLIENT | REG_SOCKET_TYPE_DOMAIN, // 类型
+                    .type = REG_SOCKET_TYPE_OFF,       // 类型
+                    .local_port = 50003,               // 本地端口
+                    .remote_port = 60003,              // 目标端口
+                    .remote_ip = {192, 168, 1, 4},     // 目标地址
+                    .remote_domain = "www.xiaopj.com", // 目标域名
+                    .timeout_ms = 10000                // 超时重连
                 },
                 // 通道4
                 {
-                    .type = REG_SOCKET_TYPE_TCPCLIENT,       // 类型
+                    .type = REG_SOCKET_TYPE_OFF,       // 类型
                     .local_port = 50004,               // 本地端口
                     .remote_port = 60004,              // 目标端口
                     .remote_ip = {192, 168, 1, 4},     // 目标地址
                     .remote_domain = "www.xiaopj.com", // 目标域名
-                    .timeout_ms = 10000              // 超时重连
-                    },
+                    .timeout_ms = 10000                // 超时重连
+                },
                 // 通道5
                 {
 
-                    .type = REG_SOCKET_TYPE_TCPCLIENT,       // 类型
+                    .type = REG_SOCKET_TYPE_OFF,       // 类型
                     .local_port = 50005,               // 本地端口
                     .remote_port = 60005,              // 目标端口
                     .remote_ip = {192, 168, 1, 4},     // 目标地址
                     .remote_domain = "www.xiaopj.com", // 目标域名
                     .timeout_ms = 10000                // 超时重连
-                },
-                // 通道6
-                {
-                    .type = REG_SOCKET_TYPE_TCPCLIENT_DOMAIN,       // 类型
-                    .local_port = 50006,               // 本地端口
-                    .remote_port = 60006,              // 目标端口
-                    .remote_ip = {192, 168, 1, 4},     // 目标地址
-                    .remote_domain = "www.xiaopj.com", // 目标域名
-                    .timeout_ms = 10000                // 超时重连
-                }
-
-            }}};
+                }}}};
 
     deviceMap = defaultMap;
 }
@@ -525,7 +373,7 @@ static void modbus_get_reg(const Modbus *modbus)
             continue;
 
         uint16_t val = addr[reg];
-        val = cover[reg] ? UShortCover(val) : val;
+        val = cover(reg) ? UShortCover(val) : val;
         t.data[2 * i] = MODBUS_FROM_UINT16_HIGH(val);
         t.data[2 * i + 1] = MODBUS_FROM_UINT16_LOW(val);
     }
@@ -550,7 +398,7 @@ static void modbus_set_reg(const Modbus *modbus)
         return;
 
     uint16_t val = modbus->num;
-    val = cover[modbus->reg] ? UShortCover(modbus->num) : val;
+    val = cover(modbus->reg) ? UShortCover(modbus->num) : val;
 
     addr[modbus->reg] = val;
 }
@@ -578,7 +426,7 @@ static void modbus_set_mult(const Modbus *modbus)
             continue;
 
         uint16_t val = MODBUS_TO_UINT16(t.data[2 * i], t.data[2 * i + 1]);
-        val = cover[reg] ? UShortCover(val) : val;
+        val = cover(reg) ? UShortCover(val) : val;
         addr[reg] = val;
     }
 }

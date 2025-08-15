@@ -31,13 +31,17 @@ int main(void)
     net_init();
 
     // 是否开启串口日志输出
-    if ((FLASH_REG_CONFIG & REG_CONFIG_LOG) ||(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_15) == Bit_RESET) )
+    if ((FLASH_REG_CONFIG & REG_CONFIG_LOG) || (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_15) == Bit_RESET))
         LogSetHook(consoleHook);
 
     LOG_INFO("##############################\r\n");
     LOG_INFO("#### build %s %s\r\n", __DATE__, __TIME__);
     LOG_INFO("#### version %d.%d.%d\r\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
     LOG_INFO("##############################\r\n");
+
+    // 这里是必要的 强制链接器保留strtok()函数
+    char str[] = "hello,world!";
+    char *token = strtok(str, ",");
 
     vTaskStartScheduler();
     while (1)

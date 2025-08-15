@@ -86,6 +86,7 @@ if(${WIZNET_DRIVER})
         ./ioLibrary_Driver/Ethernet/W5500
         ./ioLibrary_Driver/Internet/DHCP
         ./ioLibrary_Driver/Internet/DNS
+        ./ioLibrary_Driver/Internet/httpServer
     )
 
     file(GLOB WIZNET_LIST
@@ -94,6 +95,9 @@ if(${WIZNET_DRIVER})
         ./ioLibrary_Driver/Ethernet/wizchip_conf.c
         ./ioLibrary_Driver/Internet/DNS/dns.c
         ./ioLibrary_Driver/Internet/DHCP/dhcp.c
+        ./ioLibrary_Driver/Internet/httpServer/httpServer.c
+        ./ioLibrary_Driver/Internet/httpServer/httpParser.c
+        ./ioLibrary_Driver/Internet/httpServer/httpUtil.c
     )
 
 endif()
