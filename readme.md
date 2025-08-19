@@ -84,9 +84,13 @@ stm32f030 基地址: 0x8003c00 (FLASH_ADDR)
   - 1: 57600 
   - 2: 19200
   - 3: 9600
-- [2] 输出掉电保存使能
-- [3] DHCP使能
-- [4] 日志使能
+- [2] 串口协议 
+  - 0: RTU
+  - 1: ASCII 
+- [3] 串口日志使能
+- [4] 输出掉电保存使能
+- [5] DHCP使能
+
 
 ### 网络配置寄存器
 
@@ -116,14 +120,13 @@ stm32f030 基地址: 0x8003c00 (FLASH_ADDR)
 | remote_domain | 6 | string[32] | "www.xiaopj.com" | 远程域名 |
 
 通道类型定义
-- 0: 关闭(OFF)
-- 1: UDP
-- 2: TCP SERVER
-- 3: TCP CLIENT
-- 4: TCP CLIENT DOMAIN
-
-默认通道配置
-- 通道0/1: UDP
-- 通道2/3: TCP SERVER
-- 通道4/5: TCP CLIENT
-- 通道6: TCP CLIENT DOMAIN
+- [3:0] 通讯类型
+  - 0: 关闭(OFF)
+  - 1: UDP
+  - 2: TCP SERVER
+  - 3: TCP CLIENT
+- [6:4] 协议类型
+  - 0: RTU
+  - 1: ASCII
+  - 2: MBAP
+- [7] 域名开关

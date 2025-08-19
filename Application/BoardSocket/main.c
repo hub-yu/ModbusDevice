@@ -26,7 +26,7 @@ int main(void)
     device_init();
 
     led_init();
-    const uint32_t baudrate[] = {119200, 57600, 19200, 9600};
+    const uint32_t baudrate[] = {115200, 57600, 19200, 9600};
     uart_init(baudrate[FLASH_REG_CONFIG & REG_CONFIG_BAUDRATE]);
     net_init();
 

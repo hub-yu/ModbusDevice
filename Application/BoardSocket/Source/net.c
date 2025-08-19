@@ -205,6 +205,18 @@ static void timer_callback(TimerHandle_t xTimer)
     httpServer_time_handler(); // 处理httpserver超时
 }
 
+static void snd_Device(const Modbus *modbus)
+{
+    uint8_t data[20] = {};
+    Modbus_RTU rtu = {
+        .addr = modbus->addr,
+        .pdu = modbus->pdu,        
+    };
+
+    int32_t len = modebus_serilize_rtu(&rtu, data);
+    net_rcv_override(modbus->from, data, len);
+}
+
 static int32_t dhcp(uint8_t n)
 {
     static uint8_t buf[RIP_MSG_SIZE];
@@ -247,16 +259,14 @@ static int32_t dhcp(uint8_t n)
         Modbus modbus = {
             .from = 255,
             .addr = 0,
-            .cmd = MODBUS_CMD_SET_REG_MULT,
-            .reg = REG_IP,
-            .num = 2,
-            .length = 4,
-            .data = {ip[0], ip[1], ip[2], ip[3]}};
+            .pdu = {
+                .cmd = MODBUS_CMD_SET_REG_MULT,
+                .reg = REG_IP,
+                .num = 2,
+                .length = 4,
+                .data = {ip[0], ip[1], ip[2], ip[3]}}};
 
-        uint8_t data[20] = {};
-        int32_t len = modebus_serilize(&modbus, data);
-
-        net_rcv_override(255, data, len);
+        snd_Device(&modbus);
     }
 
     if ((gw[0] || gw[1] || gw[2] || gw[3]) &&
@@ -271,16 +281,14 @@ static int32_t dhcp(uint8_t n)
         Modbus modbus = {
             .from = 255,
             .addr = 0,
-            .cmd = MODBUS_CMD_SET_REG_MULT,
-            .reg = REG_GATEWAY,
-            .num = 2,
-            .length = 4,
-            .data = {gw[0], gw[1], gw[2], gw[3]}};
+            .pdu = {
+                .cmd = MODBUS_CMD_SET_REG_MULT,
+                .reg = REG_GATEWAY,
+                .num = 2,
+                .length = 4,
+                .data = {gw[0], gw[1], gw[2], gw[3]}}};
 
-        uint8_t data[20] = {};
-        int32_t len = modebus_serilize(&modbus, data);
-
-        net_rcv_override(255, data, len);
+        snd_Device(&modbus);
     }
 
     if ((sn[0] || sn[1] || sn[2] || sn[3]) &&
@@ -294,16 +302,14 @@ static int32_t dhcp(uint8_t n)
         Modbus modbus = {
             .from = 255,
             .addr = 0,
-            .cmd = MODBUS_CMD_SET_REG_MULT,
-            .reg = REG_MASK,
-            .num = 2,
-            .length = 4,
-            .data = {sn[0], sn[1], sn[2], sn[3]}};
+            .pdu = {
+                .cmd = MODBUS_CMD_SET_REG_MULT,
+                .reg = REG_MASK,
+                .num = 2,
+                .length = 4,
+                .data = {sn[0], sn[1], sn[2], sn[3]}}};
 
-        uint8_t data[20] = {};
-        int32_t len = modebus_serilize(&modbus, data);
-
-        net_rcv_override(255, data, len);
+        snd_Device(&modbus);
     }
 
     if ((dns[0] || dns[1] || dns[2] || dns[3]) &&
@@ -318,16 +324,14 @@ static int32_t dhcp(uint8_t n)
         Modbus modbus = {
             .from = 255,
             .addr = 0,
-            .cmd = MODBUS_CMD_SET_REG_MULT,
-            .reg = REG_DNS,
-            .num = 2,
-            .length = 4,
-            .data = {dns[0], dns[1], dns[2], dns[3]}};
+            .pdu = {
+                .cmd = MODBUS_CMD_SET_REG_MULT,
+                .reg = REG_DNS,
+                .num = 2,
+                .length = 4,
+                .data = {dns[0], dns[1], dns[2], dns[3]}}};
 
-        uint8_t data[20] = {};
-        int32_t len = modebus_serilize(&modbus, data);
-
-        net_rcv_override(255, data, len);
+        snd_Device(&modbus);
     }
 
     return state == DHCP_IP_LEASED ? 0 : 1;
@@ -335,21 +339,22 @@ static int32_t dhcp(uint8_t n)
 
 static int32_t web()
 {
-    // static st_http_request tx, rx;
+    static uint8_t tx[520] = {};
+    static uint8_t rx[520] = {};
 
-    // static uint8_t n = SOCKET_CHANNEL_6;
-    // static uint8_t need_init = 1;
-    // if (need_init)
-    // {
-    //     // 关闭该通道中断
-    //     uint8_t simr = getSIMR();
-    //     simr &= ~(1 << n);
-    //     setSIMR(simr);
-    //     httpServer_init(tx, rx, 1, &n);
-    //     need_init = 0;
-    // }
-    // httpServer_run(0);
-    // LOG_INFO("%d", get_httpServer_timecount());
+    static uint8_t n = SOCKET_CHANNEL_6;
+    static uint8_t need_init = 1;
+    if (need_init)
+    {
+        // 关闭该通道中断
+        uint8_t simr = getSIMR();
+        simr &= ~(1 << n);
+        setSIMR(simr);
+        httpServer_init(tx, rx, 1, &n);
+        need_init = 0;
+    }
+    httpServer_run(0);
+    LOG_INFO("%d\r\n", get_httpServer_timecount());
 }
 
 static void udp(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len)
@@ -590,15 +595,15 @@ static void sokit(int32_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
         return;
     }
 
-    switch (deviceMap.regs.netMap[n].type)
+    switch (deviceMap.regs.netMap[n].type & REG_SOCKET_TYPE_STYLE)
     {
-    case REG_SOCKET_TYPE_UDP:
+    case REG_SOCKET_TYPE_STYLE_UDP:
         udp(n, rcv_buf, rcv_len);
         break;
-    case REG_SOCKET_TYPE_TCPSERVER:
+    case REG_SOCKET_TYPE_STYLE_TCPSERVER:
         tcp_server(n, rcv_buf, rcv_len, ms);
         break;
-    case REG_SOCKET_TYPE_TCPCLIENT:
+    case REG_SOCKET_TYPE_STYLE_TCPCLIENT:
         tcp_client(n, rcv_buf, rcv_len, ms);
         break;
 
@@ -652,7 +657,7 @@ static void net_task(void *arg)
         if ((deviceMap.regs.config & REG_CONFIG_DHCP) && dhcp(SOCKET_CHANNEL_7))
             continue;
 
-        web();
+        // web();
 
         for (int32_t i = 0; i < SOCKET_CHANNEL_6; i++)
             sokit(i, rcv_buf[i], rcv_len + i, ms + i);

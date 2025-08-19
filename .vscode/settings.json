@@ -120,7 +120,9 @@
         "mqtt_interface.h": "c",
         "httpserver.h": "c",
         "cstring": "c",
-        "httpparser.h": "c"
+        "httpparser.h": "c",
+        "sstream": "c",
+        "cctype": "c"
     },
     "cortex-debug.variableUseNaturalFormat": true,
     "C_Cpp.errorSquiggles": "disabled"

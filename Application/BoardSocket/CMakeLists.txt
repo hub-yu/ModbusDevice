@@ -1,9 +1,11 @@
 set(VERSION_MAJOR "2")
-set(VERSION_MINOR "0")
+set(VERSION_MINOR "2")
 set(VERSION_PATCH "0")
 
 #APP
-
+# v2.2.0 增加ASCII, 及网络MODBUS协议，
+#        调整部分保持寄存器地址，参见readme.md
+#        增加串口助手MODBUS ASCII配置文件
 # v2.1.0 修改TCP 超时重连机制时间30秒->10秒
 #        调整各个通道类型寄存器
 #        减少通道数量7 -> 6

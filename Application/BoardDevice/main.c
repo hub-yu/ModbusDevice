@@ -8,7 +8,12 @@
 #include "led.h"
 #include "uart.h"
 #include "device.h"
+// #include "log.h"
 
+// static void consoleHook(const uint8_t *d, int32_t l)
+// {
+//     uart_snd(d, l);
+// }
 
 int main(void)
 {
@@ -18,7 +23,17 @@ int main(void)
 
     device_init();
     led_init();
-    uart_init();
+    const uint32_t baudrate[] = {115200, 57600, 19200, 9600};
+    uart_init(baudrate[FLASH_REG_CONFIG & REG_CONFIG_BAUDRATE]);
+
+    // 是否开启串口日志输出
+    // if (FLASH_REG_CONFIG & REG_CONFIG_LOG)
+    //     LogSetHook(consoleHook);
+
+    // LOG_INFO("##############################\r\n");
+    // LOG_INFO("#### build %s %s\r\n", __DATE__, __TIME__);
+    // LOG_INFO("#### version %d.%d.%d\r\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    // LOG_INFO("##############################\r\n");
 
     vTaskStartScheduler();
     while (1)

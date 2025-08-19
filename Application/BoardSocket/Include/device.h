@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include "modbus.h"
 
 #define MODBUS_REG_OUT_NUMBER (8)
 #define MODBUS_REG_IN_NUMBER (11)
@@ -10,6 +11,15 @@
 
 #define MAX_DOMAIN  (32)
 
+#pragma pack(push, 1)
+typedef struct Modbus
+{
+    uint8_t from;   // from interface
+    uint8_t addr;   // slave address
+    uint16_t index; //序号
+    Modbus_PDU pdu; //
+} Modbus;
+#pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct NetMap
@@ -49,7 +59,7 @@ typedef struct DeviceMap
     RegMap regs;                             // 保持寄存器
 
 } DeviceMap;
-
+#pragma pack(pop)
 
 #define REG_ID (0)
 #define REG_CMD (1)
@@ -71,16 +81,25 @@ typedef struct DeviceMap
 #define REG_CMD_RESTORE (2) //  恢复出厂设置
 
 #define REG_CONFIG_BAUDRATE (3 << 0) // 波特率配置  0:115200 1:57600 2：19200: 3:9600
-#define REG_CONFIG_OUTKEEP (1 << 2)  // 输出掉电保存使能
-#define REG_CONFIG_DHCP (1 << 3)     // DHCP使能
-#define REG_CONFIG_LOG (1 << 4)     // 日志使能
+#define REG_CONFIG_PROTOCOL (1 << 2) // 串口协议   0: RTU  1: ASCII
+#define REG_CONFIG_LOG (1 << 3)     // 串口日志使能
 
+#define REG_CONFIG_OUTKEEP (1 << 4)  // 输出掉电保存使能
+#define REG_CONFIG_DHCP (1 << 5)     // DHCP使能
 
-#define REG_SOCKET_TYPE_OFF (0)             //关闭
-#define REG_SOCKET_TYPE_UDP (1)             //UDP
-#define REG_SOCKET_TYPE_TCPSERVER (2)       //TCP SERVER
-#define REG_SOCKET_TYPE_TCPCLIENT (3)       //TCP CLIENT
-#define REG_SOCKET_TYPE_DOMAIN (1 << 4)     //DNS
+#define REG_SOCKET_TYPE_STYLE (0xf)         // 通讯类型
+#define REG_SOCKET_TYPE_STYLE_OFF (0)       // 关闭
+#define REG_SOCKET_TYPE_STYLE_UDP (1)       // UDP
+#define REG_SOCKET_TYPE_STYLE_TCPSERVER (2) // TCP SERVER
+#define REG_SOCKET_TYPE_STYLE_TCPCLIENT (3) // TCP CLIENT
+
+#define REG_SOCKET_TYPE_PROTOCOL (7 << 4)   // 协议类型
+#define REG_SOCKET_TYPE_PROTOCOL_RTU (0 << 4)    // RTU
+#define REG_SOCKET_TYPE_PROTOCOL_ASCII (1 << 4)  // ASCII
+#define REG_SOCKET_TYPE_PROTOCOL_MBAP (2 << 4)  // MBAP
+
+#define REG_SOCKET_TYPE_DOMAIN (1 << 7)     // DNS
+
 
 
 #define FLASH_ADDR (0x800fc00)
@@ -107,7 +126,7 @@ typedef struct DeviceMap
 
 #define DEVICE_TASK_NAME "device_task"
 #define DEVICE_TASK_PRIORITY 3
-#define DEVICE_TASK_STACK_SIZE 256
+#define DEVICE_TASK_STACK_SIZE 512
 
 void device_init(void);
 

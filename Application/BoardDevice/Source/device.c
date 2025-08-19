@@ -7,101 +7,128 @@
 
 #include "modbus.h"
 #include "uart.h"
+// #include "log.h"
 
 #include <string.h>
 
 static QueueHandle_t xQueue;
 
-#define FLASH_ADDR (0x8003c00)
-#define MODBUS_ADDR (17)
-#define MODBUS_REG_OUT_NUMBER (6)
-#define MODBUS_REG_IN_NUMBER (0)
-#define MODBUS_REG_VAL_NUMBER (2)
+static DeviceMap deviceMap;
 
-#define MODBUS_REGS_NUMBER
-
-typedef enum
+static void regRestore()
 {
-    REG_DEVICEID, // 设备ID
-    REG_END,      // 保持寄存器结束
-} REG_TYPE;
 
-#pragma pack(push, 1)
-typedef struct DeviceMap
-{                                            // 1kb
-    uint32_t reg_out;                        // 0x800fc00   FLASH_ADDR
-    uint32_t reg_in;                         // 0x800fc04   FLASH_ADDR + 4
-    uint16_t reg_val[MODBUS_REG_VAL_NUMBER]; // 0x800fc08   FLASH_ADDR + 4 + 4
-    uint16_t regs[REG_END];                  // 0x800fc28   FLASH_ADDR + 4 + 4 + 64
-} DeviceMap;
-#pragma pack(pop)
-
-static volatile DeviceMap deviceMap = {
-    .reg_out = 0,  // 输出寄存器
-    .reg_in = 0,   // 输入寄存器
-    .reg_val = {}, // 模拟量寄存器
-    .regs = {}     // 保持寄存器
-};
+    static const DeviceMap defaultMap = {
+        .out = 0, // 输出寄存器
+        .regs = {
+            // 保持寄存器
+            .id = 1,     // 地址寄存器
+            .cmd = 0,    // 控制寄存器
+            .config = 0, // 配置寄存器
+        }};
+    deviceMap = defaultMap;
+}
 
 size_t uart_rcv_override(const void *array, size_t len)
 {
-    Modbus modbus = {};
-    int32_t ret = modebus_deserilize(&modbus, array, len);
+    // ASCII
+    if (deviceMap.regs.config & REG_CONFIG_PROTOCOL)
+    {
+        Modbus_ASCII ascii = {};
+        int32_t ret = modebus_deserilize_ascii(&ascii, array, len);
+        if (ret > 0)
+        {
+            Modbus modbus = {
+                .addr = ascii.addr,
+                .pdu = ascii.pdu};
+            xQueueSend(xQueue, (void *)&modbus, 0);
+        }
+        return ret < 0 ? 1 : ret;
+    }
 
-    if (ret > 0)
-        xQueueSend(xQueue, (void *)&modbus, 0);
+    // RTU
+    else
+    {
+        Modbus_RTU rtu = {};
+        int32_t ret = modebus_deserilize_rtu(&rtu, array, len);
+        if (ret > 0)
+        {
+            Modbus modbus = {
+                .addr = rtu.addr,
+                .pdu = rtu.pdu};
+            xQueueSend(xQueue, (void *)&modbus, 0);
+        }
+        return ret < 0 ? 1 : ret;
+    }
+}
 
-    return ret < 0 ? 1 : ret;
+static void snd(const Modbus *modbus)
+{
+    uint8_t data[64] = {};
+    int32_t len = 0;
+
+    if (deviceMap.regs.config & REG_CONFIG_PROTOCOL)
+    {
+        Modbus_ASCII ascii = {
+            .addr = modbus->addr,
+            .pdu = modbus->pdu};
+        len = modebus_serilize_ascii(&ascii, data);
+    }
+    else
+    {
+        Modbus_RTU rtu = {
+            .addr = modbus->addr,
+            .pdu = modbus->pdu};
+        len = modebus_serilize_rtu(&rtu, data);
+    }
+    uart_snd(data, len);
 }
 
 static void modbus_get_out(const Modbus *modbus)
 {
     Modbus t = {};
-    t.addr = deviceMap.regs[REG_DEVICEID];
-    t.cmd = modbus->cmd;
-    t.length = modbus->num / 8 + (modbus->num % 8 ? 1 : 0);
+    t.addr = deviceMap.regs.id;
 
-    for (uint8_t i = 0; i < modbus->num; i++)
+    t.pdu.cmd = modbus->pdu.cmd;
+    t.pdu.length = modbus->pdu.num / 8 + (modbus->pdu.num % 8 ? 1 : 0);
+
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
     {
-        uint16_t reg = modbus->reg + i;
+        uint16_t reg = modbus->pdu.reg + i;
         if (reg >= 32)
             continue;
 
-        if (deviceMap.reg_out & (1 << reg))
-            t.data[i / 8] |= 1 << (i % 8);
+        if (deviceMap.out & (1 << reg))
+            t.pdu.data[i / 8] |= 1 << (i % 8);
     }
 
-    uint8_t data[64] = {};
-    int32_t len = modebus_serilize(&t, data);
-
-    uart_snd(data, len);
+    snd(&t);
 }
 
 static void modbus_set_out(const Modbus *modbus)
 {
 
-    Modbus t = {};
-    t.addr = deviceMap.regs[REG_DEVICEID];
-    t.cmd = modbus->cmd;
-    t.reg = modbus->reg;
-    t.num = modbus->num;
+    {
+        Modbus t = {};
+        t.addr = deviceMap.regs.id;
+        t.pdu.cmd = modbus->pdu.cmd;
+        t.pdu.reg = modbus->pdu.reg;
+        t.pdu.num = modbus->pdu.num;
 
-    uint8_t data[64] = {};
-    int32_t len = modebus_serilize(&t, data);
+        snd(&t);
+    }
 
-    uart_snd(data, len);
-
-    if (modbus->reg >= 32)
+    if (modbus->pdu.reg >= 32)
         return;
 
-    switch (modbus->num)
+    switch (modbus->pdu.num)
     {
     case 0: // OFF
-        deviceMap.reg_out &= ~(1 << modbus->reg);
+        deviceMap.out &= ~(1 << modbus->pdu.reg);
         break;
 
     case 0xff00: // ON
-        deviceMap.reg_out |= (1 << modbus->reg);
+        deviceMap.out |= (1 << modbus->pdu.reg);
         break;
     default:
         break;
@@ -110,186 +137,257 @@ static void modbus_set_out(const Modbus *modbus)
 
 static void modbus_set_out_mult(const Modbus *modbus)
 {
-    Modbus t = {};
-    t.addr = deviceMap.regs[REG_DEVICEID];
-    t.cmd = modbus->cmd;
-    t.reg = modbus->reg;
-    t.num = modbus->num;
-    t.length = modbus->length;
-    memcpy(t.data, modbus->data, modbus->length);
-
-    uint8_t data[64] = {};
-    int32_t len = modebus_serilize(&t, data);
-
-    uart_snd(data, len);
-
-    for (uint8_t i = 0; i < modbus->num; i++)
     {
-        uint16_t reg = modbus->reg + i;
+        Modbus t = {};
+        t.addr = deviceMap.regs.id;
+        t.pdu.cmd = modbus->pdu.cmd;
+        t.pdu.reg = modbus->pdu.reg;
+        t.pdu.num = modbus->pdu.num;
+        // t.pdu.length = modbus->pdu.length;
+        // memcpy(t.data, modbus->data, modbus->length);
+        snd(&t);
+    }
+
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
+    {
+        uint16_t reg = modbus->pdu.reg + i;
         if (reg >= 32)
             continue;
 
-        if (modbus->data[i / 8] & (1 << (i % 8)))
-            deviceMap.reg_out |= (1 << reg);
+        if (modbus->pdu.data[i / 8] & (1 << (i % 8)))
+            deviceMap.out |= (1 << reg);
         else
-            deviceMap.reg_out &= ~(1 << reg);
+            deviceMap.out &= ~(1 << reg);
     }
 }
 
 static void modbus_get_in(const Modbus *modbus)
 {
-
     Modbus t = {};
-    t.addr = deviceMap.regs[REG_DEVICEID];
-    t.cmd = modbus->cmd;
-    t.length = modbus->num / 8 + (modbus->num % 8 ? 1 : 0);
+    t.addr = deviceMap.regs.id;
 
-    for (uint8_t i = 0; i < modbus->num; i++)
-    {
-        uint16_t reg = modbus->reg + i;
-        if (reg >= 32)
-            continue;
+    t.pdu.cmd = modbus->pdu.cmd;
+    t.pdu.length = modbus->pdu.num / 8 + (modbus->pdu.num % 8 ? 1 : 0);
 
-        if (deviceMap.reg_in & (1 << reg))
-            t.data[i / 8] |= 1 << (i % 8);
-    }
+    // for (uint8_t i = 0; i < modbus->pdu.num; i++)
+    // {
 
-    uint8_t data[64] = {};
-    int32_t len = modebus_serilize(&t, data);
+    //     uint16_t reg = modbus->pdu.reg + i;
+    //     if (reg >= 32)
+    //         continue;
 
-    uart_snd(data, len);
+    //     if (deviceMap.in & (1 << reg))
+    //         t.pdu.data[i / 8] |= 1 << (i % 8);
+    // }
+
+    snd(&t);
 }
 
 static void modbus_get_val(const Modbus *modbus)
 {
     Modbus t = {};
-    t.addr = deviceMap.regs[REG_DEVICEID];
-    t.cmd = modbus->cmd;
-    t.length = modbus->num * 2;
+    t.addr = deviceMap.regs.id;
 
-    for (uint8_t i = 0; i < modbus->num; i++)
-    {
-        uint16_t reg = modbus->reg + i;
-        if (reg >= MODBUS_REG_VAL_NUMBER)
-            continue;
+    t.pdu.cmd = modbus->pdu.cmd;
+    t.pdu.length = modbus->pdu.num * 2;
 
-        t.data[2 * i] = MODBUS_FROM_UINT16_HIGH(deviceMap.reg_val[reg]);
-        t.data[2 * i + 1] = MODBUS_FROM_UINT16_LOW(deviceMap.reg_val[reg]);
-    }
-    uint8_t data[64] = {};
-    int32_t len = modebus_serilize(&t, data);
+    // for (uint8_t i = 0; i < modbus->pdu.num; i++)
+    // {
+    //     uint16_t reg = modbus->pdu.reg + i;
+    //     if (reg >= MODBUS_REG_VAL_NUMBER)
+    //         continue;
 
-    uart_snd(data, len);
+    //     t.pdu.data[2 * i] = MODBUS_FROM_UINT16_HIGH(deviceMap.val[reg]);
+    //     t.pdu.data[2 * i + 1] = MODBUS_FROM_UINT16_LOW(deviceMap.val[reg]);
+    // }
+    snd(&t);
 }
 
 static void modbus_get_reg(const Modbus *modbus)
 {
     Modbus t = {};
-    t.addr = deviceMap.regs[REG_DEVICEID];
-    t.cmd = modbus->cmd;
-    t.length = modbus->num * 2;
+    t.addr = deviceMap.regs.id;
 
-    for (uint8_t i = 0; i < modbus->num; i++)
+    t.pdu.cmd = modbus->pdu.cmd;
+    t.pdu.length = modbus->pdu.num * 2;
+
+    uint16_t *addr = (uint16_t *)(&(deviceMap.regs));
+    int32_t len = sizeof(RegMap) / sizeof(uint16_t);
+
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
     {
-        uint16_t reg = modbus->reg + i;
-        if (reg >= REG_END)
+        uint16_t reg = modbus->pdu.reg + i;
+        if (reg >= len)
             continue;
 
-        t.data[2 * i] = MODBUS_FROM_UINT16_HIGH(deviceMap.regs[reg]);
-        t.data[2 * i + 1] = MODBUS_FROM_UINT16_LOW(deviceMap.regs[reg]);
+        uint16_t val = addr[reg];
+        // val = cover(reg) ? UShortCover(val) : val;
+        t.pdu.data[2 * i] = MODBUS_FROM_UINT16_HIGH(val);
+        t.pdu.data[2 * i + 1] = MODBUS_FROM_UINT16_LOW(val);
     }
-    uint8_t data[64] = {};
-    int32_t len = modebus_serilize(&t, data);
-
-    uart_snd(data, len);
+    snd(&t);
 }
 
 static void modbus_set_reg(const Modbus *modbus)
 {
-    Modbus t = {};
-    t.addr = deviceMap.regs[REG_DEVICEID];
-    t.cmd = modbus->cmd;
-    t.reg = modbus->reg;
-    t.num = modbus->num;
+    {
+        Modbus t = {};
+        t.addr = deviceMap.regs.id;
 
-    uint8_t data[64] = {};
-    int32_t len = modebus_serilize(&t, data);
+        t.pdu.cmd = modbus->pdu.cmd;
+        t.pdu.reg = modbus->pdu.reg;
+        t.pdu.num = modbus->pdu.num;
 
-    uart_snd(data, len);
+        snd(&t);
+    }
 
-    if (modbus->reg >= REG_END)
+    uint16_t *addr = (uint16_t *)(&(deviceMap.regs));
+    int32_t len = sizeof(RegMap) / sizeof(uint16_t);
+
+    if (modbus->pdu.reg >= len)
         return;
 
-    deviceMap.regs[modbus->reg] = modbus->num;
+    uint16_t val = modbus->pdu.num;
+    // val = cover(modbus->pdu.reg) ? UShortCover(modbus->pdu.num) : val;
+
+    addr[modbus->pdu.reg] = val;
 }
 
-static void modbus_set_reg_mult(const Modbus *modbus)
+static void modbus_set_mult(const Modbus *modbus)
 {
-    Modbus t = {};
-    t.addr = deviceMap.regs[REG_DEVICEID];
-    t.cmd = modbus->cmd;
-    t.reg = modbus->reg;
-    t.num = modbus->num;
-    t.length = modbus->length;
-    memcpy(t.data, modbus->data, modbus->length);
-
-    uint8_t data[64] = {};
-    int32_t len = modebus_serilize(&t, data);
-
-    uart_snd(data, len);
-
-    for (uint8_t i = 0; i < modbus->num; i++)
     {
-        uint16_t reg = modbus->reg + i;
-        if (reg >= REG_END)
+        Modbus t = {};
+        t.addr = deviceMap.regs.id;
+
+        t.pdu.cmd = modbus->pdu.cmd;
+        t.pdu.reg = modbus->pdu.reg;
+        t.pdu.num = modbus->pdu.num;
+        // t.pdu.length = modbus->pdu.length;
+        // memcpy(t.pdu.data, modbus->pdu.data, modbus->pdu.length);
+        snd(&t);
+    }
+
+    uint16_t *addr = (uint16_t *)(&(deviceMap.regs));
+    int32_t len = sizeof(RegMap) / sizeof(uint16_t);
+
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
+    {
+        uint16_t reg = modbus->pdu.reg + i;
+        if (reg >= len)
             continue;
 
-        deviceMap.regs[reg] = MODBUS_TO_UINT16(t.data[2 * i], t.data[2 * i + 1]);
+        uint16_t val = MODBUS_TO_UINT16(modbus->pdu.data[2 * i], modbus->pdu.data[2 * i + 1]);
+        // val = cover(reg) ? UShortCover(val) : val;
+        addr[reg] = val;
     }
 }
 
+
 void flash_sync()
 {
-
     DeviceMap map = *(DeviceMap *)(FLASH_ADDR);
-    uint16_t temp_regs[REG_END];
-    memcpy(temp_regs, (void *)deviceMap.regs, REG_END * sizeof(uint16_t));
+    if ((memcmp(&map.regs, &deviceMap.regs, sizeof(RegMap))) // 比较保持寄存器
+        || (map.out != deviceMap.out))                       // 比较输出寄存器
+    {
 
-    // 没有变化，不需要写入
-    if (
-        // map.reg_out == deviceMap.reg_out &&
-        memcmp(map.regs, temp_regs, REG_END * sizeof(uint16_t)) == 0)
-        return;
+        // LOG_INFO("flash_sync");
 
-    FLASH_Unlock();
-    FLASH_ErasePage(FLASH_ADDR);
+        FLASH_Unlock();
+        FLASH_ErasePage(FLASH_ADDR);
+        FLASH_ProgramWord(FLASH_ADDR, deviceMap.out); // 保存输出寄存器
 
-    // FLASH_ProgramWord(FLASH_ADDR, deviceMap.reg_out);
+        uint16_t *addr = (uint16_t *)(&(deviceMap.regs));
+        int32_t len = sizeof(RegMap) / sizeof(uint16_t);
+        for (int32_t i = 0; i < len; i++) // 保持寄存器
+            FLASH_ProgramHalfWord(FLASH_ADDR + 4 + i * 2, addr[i]);
 
-    for (int32_t i = 0; i < REG_END; i++)
-        FLASH_ProgramHalfWord(FLASH_ADDR + 4 + 4 + 2 * MODBUS_REG_VAL_NUMBER + i * 2, deviceMap.regs[i]);
+        FLASH_Lock();
+    }
+}
 
-    FLASH_Lock();
+static void process_modbus(const Modbus *modbus)
+{
+
+    switch (modbus->pdu.cmd)
+    {
+    case MODBUS_CMD_GET_OUT:
+        modbus_get_out(modbus);
+        break;
+    case MODBUS_CMD_SET_OUT:
+        modbus_set_out(modbus);
+        break;
+    case MODBUS_CMD_SET_OUT_MULT:
+        modbus_set_out_mult(modbus);
+        break;
+
+    case MODBUS_CMD_GET_IN:
+        modbus_get_in(modbus);
+        break;
+    case MODBUS_CMD_GET_VAL:
+        modbus_get_val(modbus);
+        break;
+
+    case MODBUS_CMD_GET_REG:
+        modbus_get_reg(modbus);
+        break;
+    case MODBUS_CMD_SET_REG:
+        modbus_set_reg(modbus);
+        break;
+    case MODBUS_CMD_SET_REG_MULT:
+        modbus_set_mult(modbus);
+        break;
+
+    default:
+        break;
+    }
+
+    // {
+    //     LOG_DEBUG("addr: %d, cmd: %d, reg: %d, num: %d, length: %d, data: %s\r\n", modbus.addr, modbus.cmd, modbus.reg, modbus.num, modbus.length, ByteArrayToStr(modbus.data, modbus.length));
+    // }
+}
+
+static uint16_t out_pin[] = {GPIO_Pin_4, GPIO_Pin_5, GPIO_Pin_6, GPIO_Pin_7, GPIO_Pin_9, GPIO_Pin_10};
+
+static void process_cmd(uint16_t cmd)
+{
+    deviceMap.regs.cmd = 0;
+
+    switch (cmd)
+    {
+    case REG_CMD_RESTORE:
+        regRestore(&deviceMap);
+        flash_sync();
+        for (int32_t i = 0; i < MODBUS_REG_OUT_NUMBER; i++)
+            GPIO_WriteBit(GPIOA, out_pin[i], Bit_SET);
+        vTaskDelay(pdMS_TO_TICKS(200)); // 等待应答发送完成
+        NVIC_SystemReset();
+        break;
+    case REG_CMD_RESTART:
+        flash_sync();
+        for (int32_t i = 0; i < MODBUS_REG_OUT_NUMBER; i++)
+            GPIO_WriteBit(GPIOA, out_pin[i], Bit_SET);
+        vTaskDelay(pdMS_TO_TICKS(200)); // 等待应答发送完成
+        NVIC_SystemReset();
+        break;
+    default:
+        break;
+    }
 }
 
 void device_task(void *param)
 {
-    static uint16_t out_pin[] = {GPIO_Pin_4, GPIO_Pin_5, GPIO_Pin_6, GPIO_Pin_7, GPIO_Pin_9, GPIO_Pin_10};
 
+    // 关闭所有输出
     for (int32_t i = 0; i < MODBUS_REG_OUT_NUMBER; i++)
         GPIO_WriteBit(GPIOA, out_pin[i], Bit_SET);
 
-    vTaskDelay(pdMS_TO_TICKS(500)); // 避免电源未稳定时的抖动
-
-    // 从掉电存储中读取设备状态
-    if (*(uint16_t *)(FLASH_ADDR + 4 + 4 + 2 * MODBUS_REG_VAL_NUMBER) <= 255)
-        deviceMap = *(DeviceMap *)(FLASH_ADDR);
-
     while (1)
     {
+        // 处理设备控制
+        process_cmd(deviceMap.regs.cmd);
 
         for (int32_t i = 0; i < MODBUS_REG_OUT_NUMBER; i++)
-            GPIO_WriteBit(GPIOA, out_pin[i], (deviceMap.reg_out & (1 << i)) ? Bit_RESET : Bit_SET);
+            GPIO_WriteBit(GPIOA, out_pin[i], (deviceMap.out & (1 << i)) ? Bit_RESET : Bit_SET);
 
         Modbus modbus;
         if (xQueueReceive(xQueue, &modbus, pdMS_TO_TICKS(2000)) != pdPASS)
@@ -298,45 +396,12 @@ void device_task(void *param)
             continue;
         }
 
-        if (modbus.addr && (modbus.addr != deviceMap.regs[REG_DEVICEID]))
+        // 过滤MODBUS帧
+        if (modbus.addr && (modbus.addr != deviceMap.regs.id))
             continue;
 
-        switch (modbus.cmd)
-        {
-        case MODBUS_CMD_GET_OUT:
-            modbus_get_out(&modbus);
-            break;
-        case MODBUS_CMD_SET_OUT:
-            modbus_set_out(&modbus);
-            break;
-        case MODBUS_CMD_SET_OUT_MULT:
-            modbus_set_out_mult(&modbus);
-            break;
-
-        case MODBUS_CMD_GET_IN:
-            modbus_get_in(&modbus);
-            break;
-        case MODBUS_CMD_GET_VAL:
-            modbus_get_val(&modbus);
-            break;
-
-        case MODBUS_CMD_GET_REG:
-            modbus_get_reg(&modbus);
-            break;
-        case MODBUS_CMD_SET_REG:
-            modbus_set_reg(&modbus);
-            break;
-        case MODBUS_CMD_SET_REG_MULT:
-            modbus_set_reg_mult(&modbus);
-            break;
-
-        default:
-
-            break;
-        }
-        // {
-        //     LOG_DEBUG("addr: %d, cmd: %d, reg: %d, num: %d, length: %d, data: %s\r\n", modbus.addr, modbus.cmd, modbus.reg, modbus.num, modbus.length, ByteArrayToStr(modbus.data, modbus.length));
-        // }
+        // 处理MODBUS帧
+        process_modbus(&modbus);
     }
 }
 
@@ -355,5 +420,13 @@ void device_init(void)
     GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
     GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+    deviceMap = *(DeviceMap *)(FLASH_ADDR);
+    if (deviceMap.regs.id > 255)
+        regRestore(&deviceMap);
+
+    if ((deviceMap.regs.config & REG_CONFIG_OUTKEEP) == 0)
+        deviceMap.out = 0;
+
+    flash_sync();
     xTaskCreate(device_task, DEVICE_TASK_NAME, DEVICE_TASK_STACK_SIZE, NULL, DEVICE_TASK_PRIORITY, NULL);
 }

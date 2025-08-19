@@ -68,7 +68,7 @@ static void regRestore()
 
         .regs = {
             // 保持寄存器
-            .id = 0,     // 地址寄存器
+            .id = 1,     // 地址寄存器
             .cmd = 0,    // 控制寄存器
             .config = 0, // 配置寄存器
 
@@ -82,7 +82,7 @@ static void regRestore()
                 // 网络通道寄存器
                 // 通道0
                 {
-                    .type = REG_SOCKET_TYPE_UDP,       // 类型
+                    .type = REG_SOCKET_TYPE_STYLE_UDP, // 类型
                     .local_port = 50000,               // 本地端口
                     .remote_port = 60000,              // 目标端口
                     .remote_ip = {192, 168, 1, 4},     // 目标地址
@@ -91,16 +91,16 @@ static void regRestore()
                 },
                 // 通道1
                 {
-                    .type = REG_SOCKET_TYPE_TCPSERVER, // 类型
-                    .local_port = 50001,               // 本地端口
-                    .remote_port = 60001,              // 目标端口
-                    .remote_ip = {192, 168, 1, 4},     // 目标地址
-                    .remote_domain = "www.xiaopj.com", // 目标域名
-                    .timeout_ms = 10000                // 超时重连
+                    .type = REG_SOCKET_TYPE_STYLE_TCPSERVER, // 类型
+                    .local_port = 50001,                     // 本地端口
+                    .remote_port = 60001,                    // 目标端口
+                    .remote_ip = {192, 168, 1, 4},           // 目标地址
+                    .remote_domain = "www.xiaopj.com",       // 目标域名
+                    .timeout_ms = 10000                      // 超时重连
                 },
                 // 通道2
                 {
-                    .type = REG_SOCKET_TYPE_TCPCLIENT, // 类型
+                    .type = REG_SOCKET_TYPE_STYLE_OFF, // 类型
                     .local_port = 50002,               // 本地端口
                     .remote_port = 60002,              // 目标端口
                     .remote_ip = {192, 168, 1, 4},     // 目标地址
@@ -109,8 +109,7 @@ static void regRestore()
                 },
                 // 通道3
                 {
-                    // .type = REG_SOCKET_TYPE_TCPCLIENT | REG_SOCKET_TYPE_DOMAIN, // 类型
-                    .type = REG_SOCKET_TYPE_OFF,       // 类型
+                    .type = REG_SOCKET_TYPE_STYLE_OFF, // 类型
                     .local_port = 50003,               // 本地端口
                     .remote_port = 60003,              // 目标端口
                     .remote_ip = {192, 168, 1, 4},     // 目标地址
@@ -119,7 +118,7 @@ static void regRestore()
                 },
                 // 通道4
                 {
-                    .type = REG_SOCKET_TYPE_OFF,       // 类型
+                    .type = REG_SOCKET_TYPE_STYLE_OFF, // 类型
                     .local_port = 50004,               // 本地端口
                     .remote_port = 60004,              // 目标端口
                     .remote_ip = {192, 168, 1, 4},     // 目标地址
@@ -129,7 +128,7 @@ static void regRestore()
                 // 通道5
                 {
 
-                    .type = REG_SOCKET_TYPE_OFF,       // 类型
+                    .type = REG_SOCKET_TYPE_STYLE_OFF, // 类型
                     .local_port = 50005,               // 本地端口
                     .remote_port = 60005,              // 目标端口
                     .remote_ip = {192, 168, 1, 4},     // 目标地址
@@ -191,32 +190,97 @@ static void flash_sync()
 
 size_t uart_rcv_override(const void *array, size_t len)
 {
-    Modbus modbus = {};
-    int32_t ret = modebus_deserilize(&modbus, array, len);
-    modbus.from = 254;
+    // ASCII
+    if (deviceMap.regs.config & REG_CONFIG_PROTOCOL)
+    {
+        Modbus_ASCII ascii = {};
+        int32_t ret = modebus_deserilize_ascii(&ascii, array, len);
+        if (ret > 0)
+        {
+            Modbus modbus = {
+                .from = 10,
+                .addr = ascii.addr,
+                .pdu = ascii.pdu};
+            xQueueSend(xQueue, (void *)&modbus, 0);
+        }
+        return ret < 0 ? 1 : ret;
+    }
 
-    if (ret > 0)
-        xQueueSend(xQueue, (void *)&modbus, 0);
-
-    return ret < 0 ? 1 : ret;
+    // RTU
+    else
+    {
+        Modbus_RTU rtu = {};
+        int32_t ret = modebus_deserilize_rtu(&rtu, array, len);
+        if (ret > 0)
+        {
+            Modbus modbus = {
+                .from = 10,
+                .addr = rtu.addr,
+                .pdu = rtu.pdu};
+            xQueueSend(xQueue, (void *)&modbus, 0);
+        }
+        return ret < 0 ? 1 : ret;
+    }
 }
 
 size_t net_rcv_override(uint8_t sn, const void *array, size_t len)
 {
-    Modbus modbus = {};
-    int32_t ret = modebus_deserilize(&modbus, array, len);
-    modbus.from = sn;
-    if (ret > 0)
-        xQueueSend(xQueue, (void *)&modbus, 0);
 
-    return ret < 0 ? 1 : ret;
+    uint8_t protocal = REG_SOCKET_TYPE_PROTOCOL_RTU;
+    if (sn < 6)
+        protocal = (deviceMap.regs.netMap[sn].type & REG_SOCKET_TYPE_PROTOCOL);
+
+    if (protocal == REG_SOCKET_TYPE_PROTOCOL_RTU)
+    {
+        Modbus_RTU rtu = {};
+        int32_t ret = modebus_deserilize_rtu(&rtu, array, len);
+        if (ret > 0)
+        {
+            Modbus modbus = {
+                .from = sn,
+                .addr = rtu.addr,
+                .pdu = rtu.pdu};
+            xQueueSend(xQueue, (void *)&modbus, 0);
+        }
+
+        return ret < 0 ? 1 : ret;
+    }
+    if (protocal == REG_SOCKET_TYPE_PROTOCOL_ASCII)
+    {
+        Modbus_ASCII ascii = {};
+        int32_t ret = modebus_deserilize_ascii(&ascii, array, len);
+        if (ret > 0)
+        {
+            Modbus modbus = {
+                .from = sn,
+                .addr = ascii.addr,
+                .pdu = ascii.pdu};
+            xQueueSend(xQueue, (void *)&modbus, 0);
+        }
+        return ret < 0 ? 1 : ret;
+    }
+
+    if (protocal == REG_SOCKET_TYPE_PROTOCOL_MBAP)
+    {
+        Modbus_MBAP mbap = {};
+        int32_t ret = modebus_deserilize_mbap(&mbap, array, len);
+        if (ret > 0)
+        {
+            Modbus modbus = {
+                .index = mbap.index,
+                .from = sn,
+                .addr = mbap.addr,
+                .pdu = mbap.pdu};
+            xQueueSend(xQueue, (void *)&modbus, 0);
+        }
+        return ret < 0 ? 1 : ret;
+    }
 }
 
 static void snd(const Modbus *modbus)
 {
     uint8_t data[256] = {};
-    int32_t len = modebus_serilize(modbus, data);
-
+    int32_t len = 0;
     switch (modbus->from)
     {
     case 0:
@@ -226,11 +290,55 @@ static void snd(const Modbus *modbus)
     case 4:
     case 5:
     case 6:
+    {
+        uint8_t protocal = (deviceMap.regs.netMap[modbus->from].type & REG_SOCKET_TYPE_PROTOCOL);
+
+        if (protocal == REG_SOCKET_TYPE_PROTOCOL_RTU)
+        {
+            Modbus_RTU rtu = {
+                .addr = modbus->addr,
+                .pdu = modbus->pdu};
+            len = modebus_serilize_rtu(&rtu, data);
+        }
+        if (protocal == REG_SOCKET_TYPE_PROTOCOL_ASCII)
+        {
+            Modbus_ASCII ascii = {
+                .addr = modbus->addr,
+                .pdu = modbus->pdu};
+            len = modebus_serilize_ascii(&ascii, data);
+        }
+        if (protocal == REG_SOCKET_TYPE_PROTOCOL_MBAP)
+        {
+            Modbus_MBAP mbap = {
+                .index = modbus->index,
+                .addr = modbus->addr,
+                .pdu = modbus->pdu};
+            len = modebus_serilize_mbap(&mbap, data);
+        }
         net_snd(modbus->from, data, len); // 发送到网络
-        break;
-    case 254:
+    }
+
+    break;
+    case 10:
+    {
+
+        if (deviceMap.regs.config & REG_CONFIG_PROTOCOL)
+        {
+            Modbus_ASCII ascii = {
+                .addr = modbus->addr,
+                .pdu = modbus->pdu};
+            len = modebus_serilize_ascii(&ascii, data);
+        }
+        else
+        {
+            Modbus_RTU rtu = {
+                .addr = modbus->addr,
+                .pdu = modbus->pdu};
+            len = modebus_serilize_rtu(&rtu, data);
+        }
         uart_snd(data, len);
-        break;
+    }
+    break;
 
     default:
         break;
@@ -240,19 +348,21 @@ static void snd(const Modbus *modbus)
 static void modbus_get_out(const Modbus *modbus)
 {
     Modbus t = {};
+    t.index = modbus->index;
     t.from = modbus->from;
     t.addr = deviceMap.regs.id;
-    t.cmd = modbus->cmd;
-    t.length = modbus->num / 8 + (modbus->num % 8 ? 1 : 0);
 
-    for (uint8_t i = 0; i < modbus->num; i++)
+    t.pdu.cmd = modbus->pdu.cmd;
+    t.pdu.length = modbus->pdu.num / 8 + (modbus->pdu.num % 8 ? 1 : 0);
+
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
     {
-        uint16_t reg = modbus->reg + i;
+        uint16_t reg = modbus->pdu.reg + i;
         if (reg >= 32)
             continue;
 
         if (deviceMap.out & (1 << reg))
-            t.data[i / 8] |= 1 << (i % 8);
+            t.pdu.data[i / 8] |= 1 << (i % 8);
     }
 
     snd(&t);
@@ -261,26 +371,30 @@ static void modbus_get_out(const Modbus *modbus)
 static void modbus_set_out(const Modbus *modbus)
 {
 
-    Modbus t = {};
-    t.from = modbus->from;
-    t.addr = deviceMap.regs.id;
-    t.cmd = modbus->cmd;
-    t.reg = modbus->reg;
-    t.num = modbus->num;
+    {
+        Modbus t = {};
+        t.index = modbus->index;
+        t.from = modbus->from;
+        t.addr = deviceMap.regs.id;
 
-    snd(&t);
+        t.pdu.cmd = modbus->pdu.cmd;
+        t.pdu.reg = modbus->pdu.reg;
+        t.pdu.num = modbus->pdu.num;
 
-    if (modbus->reg >= 32)
+        snd(&t);
+    }
+
+    if (modbus->pdu.reg >= 32)
         return;
 
-    switch (modbus->num)
+    switch (modbus->pdu.num)
     {
     case 0: // OFF
-        deviceMap.out &= ~(1 << modbus->reg);
+        deviceMap.out &= ~(1 << modbus->pdu.reg);
         break;
 
     case 0xff00: // ON
-        deviceMap.out |= (1 << modbus->reg);
+        deviceMap.out |= (1 << modbus->pdu.reg);
         break;
     default:
         break;
@@ -289,24 +403,28 @@ static void modbus_set_out(const Modbus *modbus)
 
 static void modbus_set_out_mult(const Modbus *modbus)
 {
-    Modbus t = {};
-    t.from = modbus->from;
-    t.addr = deviceMap.regs.id;
-    t.cmd = modbus->cmd;
-    t.reg = modbus->reg;
-    t.num = modbus->num;
-    t.length = modbus->length;
-    memcpy(t.data, modbus->data, modbus->length);
-
-    snd(&t);
-
-    for (uint8_t i = 0; i < modbus->num; i++)
     {
-        uint16_t reg = modbus->reg + i;
+        Modbus t = {};
+        t.index = modbus->index;
+        t.from = modbus->from;
+        t.addr = deviceMap.regs.id;
+
+        t.pdu.cmd = modbus->pdu.cmd;
+        t.pdu.reg = modbus->pdu.reg;
+        t.pdu.num = modbus->pdu.num;
+        // t.pdu.length = modbus->pdu.length;
+        // memcpy(t.data, modbus->data, modbus->length);
+
+        snd(&t);
+    }
+
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
+    {
+        uint16_t reg = modbus->pdu.reg + i;
         if (reg >= 32)
             continue;
 
-        if (modbus->data[i / 8] & (1 << (i % 8)))
+        if (modbus->pdu.data[i / 8] & (1 << (i % 8)))
             deviceMap.out |= (1 << reg);
         else
             deviceMap.out &= ~(1 << reg);
@@ -315,21 +433,22 @@ static void modbus_set_out_mult(const Modbus *modbus)
 
 static void modbus_get_in(const Modbus *modbus)
 {
-
     Modbus t = {};
+    t.index = modbus->index;
     t.from = modbus->from;
     t.addr = deviceMap.regs.id;
-    t.cmd = modbus->cmd;
-    t.length = modbus->num / 8 + (modbus->num % 8 ? 1 : 0);
 
-    for (uint8_t i = 0; i < modbus->num; i++)
+    t.pdu.cmd = modbus->pdu.cmd;
+    t.pdu.length = modbus->pdu.num / 8 + (modbus->pdu.num % 8 ? 1 : 0);
+
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
     {
-        uint16_t reg = modbus->reg + i;
+        uint16_t reg = modbus->pdu.reg + i;
         if (reg >= 32)
             continue;
 
         if (deviceMap.in & (1 << reg))
-            t.data[i / 8] |= 1 << (i % 8);
+            t.pdu.data[i / 8] |= 1 << (i % 8);
     }
 
     snd(&t);
@@ -338,19 +457,21 @@ static void modbus_get_in(const Modbus *modbus)
 static void modbus_get_val(const Modbus *modbus)
 {
     Modbus t = {};
+    t.index = modbus->index;
     t.from = modbus->from;
     t.addr = deviceMap.regs.id;
-    t.cmd = modbus->cmd;
-    t.length = modbus->num * 2;
 
-    for (uint8_t i = 0; i < modbus->num; i++)
+    t.pdu.cmd = modbus->pdu.cmd;
+    t.pdu.length = modbus->pdu.num * 2;
+
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
     {
-        uint16_t reg = modbus->reg + i;
+        uint16_t reg = modbus->pdu.reg + i;
         if (reg >= MODBUS_REG_VAL_NUMBER)
             continue;
 
-        t.data[2 * i] = MODBUS_FROM_UINT16_HIGH(deviceMap.val[reg]);
-        t.data[2 * i + 1] = MODBUS_FROM_UINT16_LOW(deviceMap.val[reg]);
+        t.pdu.data[2 * i] = MODBUS_FROM_UINT16_HIGH(deviceMap.val[reg]);
+        t.pdu.data[2 * i + 1] = MODBUS_FROM_UINT16_LOW(deviceMap.val[reg]);
     }
     snd(&t);
 }
@@ -358,74 +479,84 @@ static void modbus_get_val(const Modbus *modbus)
 static void modbus_get_reg(const Modbus *modbus)
 {
     Modbus t = {};
+    t.index = modbus->index;
     t.from = modbus->from;
     t.addr = deviceMap.regs.id;
-    t.cmd = modbus->cmd;
-    t.length = modbus->num * 2;
+
+    t.pdu.cmd = modbus->pdu.cmd;
+    t.pdu.length = modbus->pdu.num * 2;
 
     uint16_t *addr = (uint16_t *)(&(deviceMap.regs));
     int32_t len = sizeof(RegMap) / sizeof(uint16_t);
 
-    for (uint8_t i = 0; i < modbus->num; i++)
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
     {
-        uint16_t reg = modbus->reg + i;
+        uint16_t reg = modbus->pdu.reg + i;
         if (reg >= len)
             continue;
 
         uint16_t val = addr[reg];
         val = cover(reg) ? UShortCover(val) : val;
-        t.data[2 * i] = MODBUS_FROM_UINT16_HIGH(val);
-        t.data[2 * i + 1] = MODBUS_FROM_UINT16_LOW(val);
+        t.pdu.data[2 * i] = MODBUS_FROM_UINT16_HIGH(val);
+        t.pdu.data[2 * i + 1] = MODBUS_FROM_UINT16_LOW(val);
     }
     snd(&t);
 }
 
 static void modbus_set_reg(const Modbus *modbus)
 {
-    Modbus t = {};
-    t.from = modbus->from;
-    t.addr = deviceMap.regs.id;
-    t.cmd = modbus->cmd;
-    t.reg = modbus->reg;
-    t.num = modbus->num;
+    {
+        Modbus t = {};
+        t.index = modbus->index;
+        t.from = modbus->from;
+        t.addr = deviceMap.regs.id;
 
-    snd(&t);
+        t.pdu.cmd = modbus->pdu.cmd;
+        t.pdu.reg = modbus->pdu.reg;
+        t.pdu.num = modbus->pdu.num;
+
+        snd(&t);
+    }
 
     uint16_t *addr = (uint16_t *)(&(deviceMap.regs));
     int32_t len = sizeof(RegMap) / sizeof(uint16_t);
 
-    if (modbus->reg >= len)
+    if (modbus->pdu.reg >= len)
         return;
 
-    uint16_t val = modbus->num;
-    val = cover(modbus->reg) ? UShortCover(modbus->num) : val;
+    uint16_t val = modbus->pdu.num;
+    val = cover(modbus->pdu.reg) ? UShortCover(modbus->pdu.num) : val;
 
-    addr[modbus->reg] = val;
+    addr[modbus->pdu.reg] = val;
 }
 
 static void modbus_set_mult(const Modbus *modbus)
 {
-    Modbus t = {};
-    t.from = modbus->from;
-    t.addr = deviceMap.regs.id;
-    t.cmd = modbus->cmd;
-    t.reg = modbus->reg;
-    t.num = modbus->num;
-    t.length = modbus->length;
-    memcpy(t.data, modbus->data, modbus->length);
+    {
+        Modbus t = {};
+        t.index = modbus->index;
+        t.from = modbus->from;
+        t.addr = deviceMap.regs.id;
 
-    snd(&t);
+        t.pdu.cmd = modbus->pdu.cmd;
+        t.pdu.reg = modbus->pdu.reg;
+        t.pdu.num = modbus->pdu.num;
+        // t.pdu.length = modbus->pdu.length;
+        // memcpy(t.pdu.data, modbus->pdu.data, modbus->pdu.length);
+
+        snd(&t);
+    }
 
     uint16_t *addr = (uint16_t *)(&(deviceMap.regs));
     int32_t len = sizeof(RegMap) / sizeof(uint16_t);
 
-    for (uint8_t i = 0; i < modbus->num; i++)
+    for (uint8_t i = 0; i < modbus->pdu.num; i++)
     {
-        uint16_t reg = modbus->reg + i;
+        uint16_t reg = modbus->pdu.reg + i;
         if (reg >= len)
             continue;
 
-        uint16_t val = MODBUS_TO_UINT16(t.data[2 * i], t.data[2 * i + 1]);
+        uint16_t val = MODBUS_TO_UINT16(modbus->pdu.data[2 * i], modbus->pdu.data[2 * i + 1]);
         val = cover(reg) ? UShortCover(val) : val;
         addr[reg] = val;
     }
@@ -434,7 +565,7 @@ static void modbus_set_mult(const Modbus *modbus)
 static void process_modbus(const Modbus *modbus)
 {
 
-    switch (modbus->cmd)
+    switch (modbus->pdu.cmd)
     {
     case MODBUS_CMD_GET_OUT:
         modbus_get_out(modbus);

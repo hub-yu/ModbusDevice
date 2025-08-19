@@ -225,7 +225,7 @@
 #ifdef STM32F10X_MD
 #define configTOTAL_HEAP_SIZE (12 * 1024)
 #else
-#define configTOTAL_HEAP_SIZE (2 * 1024 - 100)
+#define configTOTAL_HEAP_SIZE (3 * 1024 - 100)
 #endif
 
 /* 将 configAPPLICATION_ALLOCATED_HEAP 设置为 1 以让应用程序分配用作 FreeRTOS 堆的数组。

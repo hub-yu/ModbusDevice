@@ -3,6 +3,7 @@ set(VERSION_MINOR "1")
 set(VERSION_PATCH "0")
 
 #APP
+# v2.0.0 增加ASCII, 调整部分保持寄存器地址
 # v1.1.0 移除对输出的掉电存储
 # v1.0.0 首次添加
 
@@ -26,10 +27,12 @@ add_definitions(-DBOOT_VERSION_PATCH=${BOOT_VERSION_PATCH})
 include_directories(
     ./Include
     ${PROJECT_SOURCE_DIR}/Application/Modbus
+    ${PROJECT_SOURCE_DIR}/Application/Log
 )
 
 aux_source_directory(./Source SRC_LIST)
 aux_source_directory(${PROJECT_SOURCE_DIR}/Application/Modbus/ MODBUS_LIST)
+aux_source_directory(${PROJECT_SOURCE_DIR}/Application/Log/ LOG_LIST)
 
 #添加非标准的共享库搜索路径
 link_directories(${PROJECT_SOURCE_DIR}/build/lib)
@@ -47,7 +50,7 @@ set(CMAKE_EXE_LINKER_FLAGS " -specs=rdimon.specs --specs=nano.specs -specs=nosys
 
 
 #生成目标文件
-add_executable(app.elf main.c ${SRC_LIST} ${MODBUS_LIST})
+add_executable(app.elf main.c ${SRC_LIST} ${MODBUS_LIST} ${LOG_LIST})
 
 # 确保可执行文件依赖于动态库
 add_dependencies(app.elf platform)
