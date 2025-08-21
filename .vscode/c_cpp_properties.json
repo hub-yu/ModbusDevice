@@ -18,6 +18,8 @@
                 "${workspaceFolder}/Platform/ioLibrary_Driver/Internet/DHCP",  
                 "${workspaceFolder}/Platform/ioLibrary_Driver/Internet/DNS", 
                 "${workspaceFolder}/Platform/ioLibrary_Driver/Internet/httpServer",                  
+                "${workspaceFolder}/Platform/ioLibrary_Driver/Internet/MQTT",    
+                "${workspaceFolder}/Platform/ioLibrary_Driver/Internet/MQTT/MQTTPacket/src",   
                 // "${workspaceFolder}/Application/BoardDevice/Include",
                 "${workspaceFolder}/Application/BoardSocket/Include",
                 "${workspaceFolder}/Application/Modbus",

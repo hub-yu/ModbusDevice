@@ -14,11 +14,12 @@
 #include "dhcp.h"
 #include "dns.h"
 #include "httpUtil.h"
+#include "MQTTClient.h"
 
 #include "device.h"
 #include "modbus.h"
 
-static TimerHandle_t xTimer;
+static TimerHandle_t xTimer, xTimerMQTT;
 static SemaphoreHandle_t xSemaphore;
 static StreamBufferHandle_t xStreamBufferSnd[SOCKET_END];
 static uint8_t rcv_buf[SOCKET_END][NET_RCV_BUFFER_SIZE] = {};
@@ -204,13 +205,18 @@ static void timer_callback(TimerHandle_t xTimer)
     DNS_time_handler();        // 处理DNS超时
     httpServer_time_handler(); // 处理httpserver超时
 }
+static void timerMQTT_callback(TimerHandle_t xTimerMQTT)
+{
+    for (int32_t i = 0; i < 10; i++)
+        MilliTimer_Handler();
+}
 
 static void snd_Device(const Modbus *modbus)
 {
     uint8_t data[20] = {};
     Modbus_RTU rtu = {
         .addr = modbus->addr,
-        .pdu = modbus->pdu,        
+        .pdu = modbus->pdu,
     };
 
     int32_t len = modebus_serilize_rtu(&rtu, data);
@@ -355,6 +361,175 @@ static int32_t web()
     }
     httpServer_run(0);
     LOG_INFO("%d\r\n", get_httpServer_timecount());
+}
+
+void messageArrived_0(MessageData *md)
+{
+    MQTTMessage *message = md->message;
+    LOG_INFO("0: %d\r\n", (int)message->payloadlen);
+
+    net_rcv_override(0, message->payload, message->payloadlen);
+}
+
+void messageArrived_1(MessageData *md)
+{
+    MQTTMessage *message = md->message;
+    // LOG_INFO("1: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
+    net_rcv_override(1, message->payload, message->payloadlen);
+}
+
+void messageArrived_2(MessageData *md)
+{
+    MQTTMessage *message = md->message;
+    // LOG_INFO("2: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
+    net_rcv_override(2, message->payload, message->payloadlen);
+}
+
+void messageArrived_3(MessageData *md)
+{
+    MQTTMessage *message = md->message;
+    // LOG_INFO("3: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
+    net_rcv_override(3, message->payload, message->payloadlen);
+}
+
+void messageArrived_4(MessageData *md)
+{
+    MQTTMessage *message = md->message;
+    // LOG_INFO("4: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
+    net_rcv_override(4, message->payload, message->payloadlen);
+}
+
+void messageArrived_5(MessageData *md)
+{
+    MQTTMessage *message = md->message;
+    // LOG_INFO("5: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
+    net_rcv_override(5, message->payload, message->payloadlen);
+}
+
+void messageArrived_6(MessageData *md)
+{
+    MQTTMessage *message = md->message;
+    // LOG_INFO("6: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
+    net_rcv_override(6, message->payload, message->payloadlen);
+}
+
+void messageArrived_7(MessageData *md)
+{
+    MQTTMessage *message = md->message;
+    // LOG_INFO("7: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
+    net_rcv_override(7, message->payload, message->payloadlen);
+}
+
+static messageHandler messageArrived[SOCKET_END] = {
+    messageArrived_0,
+    messageArrived_1,
+    messageArrived_2,
+    messageArrived_3,
+    messageArrived_4,
+    messageArrived_5,
+    messageArrived_6,
+    messageArrived_7,
+};
+
+static int32_t mqtt(uint8_t n)
+{
+    static Network network[SOCKET_END];
+    static MQTTClient client[SOCKET_END];
+    static unsigned char buf[200] = {};
+    static unsigned char rcv[200] = {};
+    static uint8_t topic[30] = {};
+    static uint8_t topicAck[30] = {};
+
+    if (topic[0] == 0)
+        sprintf(topic, "device/%d", deviceMap.regs.id);
+    if (topicAck[0] == 0)
+        sprintf(topicAck, "device/ack/%d", deviceMap.regs.id);
+
+    uint8_t snd[NET_SND_BUFFER_SIZE];
+    size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[n], snd, NET_SND_BUFFER_SIZE, 0);
+
+    LOG_INFO("[%d] mqtt, SR: 0x%02x\r\n", n, getSn_SR(n));
+
+    switch (getSn_SR(n))
+    {
+
+    case SOCK_ESTABLISHED:
+    {
+        if (getSn_IR(n) & Sn_IR_RECV)
+            setSn_IR(n, Sn_IR_RECV);
+
+        if (!client[n].isconnected)
+        {
+            uint8_t client_id[30] = {};
+            sprintf((char *)client_id, "device_%02x-%02x-%02x-%02x-%02x-%02x",
+                    deviceMap.regs.net_mac[0],
+                    deviceMap.regs.net_mac[1],
+                    deviceMap.regs.net_mac[2],
+                    deviceMap.regs.net_mac[3],
+                    deviceMap.regs.net_mac[4],
+                    deviceMap.regs.net_mac[5]);
+
+            MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+            data.willFlag = 0;
+            data.MQTTVersion = 3;
+            data.clientID.cstring = client_id;
+            data.username.cstring = NULL;
+            data.password.cstring = NULL;
+            data.keepAliveInterval = 60;
+            data.cleansession = 1;
+            int32_t rc = MQTTConnect(&client[n], &data);
+            // LOG_INFO("MQTTConnect %d\r\n", rc);
+            // static uint8_t topic[30] = {};
+            // sprintf(topic, "device/%d", deviceMap.regs.id);
+            rc = MQTTSubscribe(&client[n], topic, QOS0, messageArrived[n]);
+            LOG_INFO("[%d] topic: %s  ret: %d\r\n", n, topic, rc);
+        }
+
+        if (len_snd > 0)
+        {
+            // LOG_INFO("[%d] send: %d\r\n", n, len_snd);
+            MQTTMessage message = {
+                .qos = QOS0,
+                .retained = 0,
+                .dup = 0,
+                .id = 0,
+                .payload = snd,
+                .payloadlen = len_snd};
+            // static uint8_t topic[30] = {};
+            // sprintf(topic, "device/ack/%d", deviceMap.regs.id);
+            // LOG_INFO("[%d] topic: %s  publish: %d\r\n", n, topic,
+            MQTTPublish(&client[n], topicAck, &message);
+            // );
+        }
+
+        MQTTYield(&client[n], 60);
+        // LOG_INFO("MQTTYield %d\r\n", );
+    }
+
+    break;
+    case SOCK_CLOSE_WAIT:
+        if (getSn_IR(n) & Sn_IR_DISCON)
+            setSn_IR(n, Sn_IR_DISCON);
+        disconnect(n);
+        break;
+
+    case SOCK_INIT:
+        connect(n, deviceMap.regs.netMap[n].remote_ip, deviceMap.regs.netMap[n].remote_port);
+        break;
+
+    case SOCK_SYNSENT:
+        break;
+
+    case SOCK_CLOSED:
+        close(n);
+        NewNetwork(&network[n], n);
+        MQTTClientInit(&client[n], &network[n], 5000, buf, 200, rcv, 200);
+        socket(n, Sn_MR_TCP, deviceMap.regs.netMap[n].local_port, 0x00);
+        break;
+
+    default:
+        break;
+    }
 }
 
 static void udp(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len)
@@ -606,6 +781,9 @@ static void sokit(int32_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
     case REG_SOCKET_TYPE_STYLE_TCPCLIENT:
         tcp_client(n, rcv_buf, rcv_len, ms);
         break;
+    case REG_SOCKET_TYPE_STYLE_MQTT:
+        mqtt(n);
+        break;
 
     default:
         break;
@@ -645,6 +823,7 @@ static void net_task(void *arg)
         // get_socket_regs(i);
     }
     xTimerStart(xTimer, 0);
+    xTimerStart(xTimerMQTT, 0);
 
     xSemaphoreGive(xSemaphore);
 
@@ -658,7 +837,6 @@ static void net_task(void *arg)
             continue;
 
         // web();
-
         for (int32_t i = 0; i < SOCKET_CHANNEL_6; i++)
             sokit(i, rcv_buf[i], rcv_len + i, ms + i);
     }
@@ -732,6 +910,7 @@ void net_init()
     NVIC_Init(&NVIC_InitStructure);
 
     xTimer = xTimerCreate("dhcp_timer", pdMS_TO_TICKS(1000), pdTRUE, NULL, timer_callback);
+    xTimerMQTT = xTimerCreate("mqtt_timer", pdMS_TO_TICKS(10), pdTRUE, NULL, timerMQTT_callback);
 
     xTaskCreate(net_task, NET_TASK_NAME, NET_TASK_STACK_SIZE, NULL, NET_TASK_PRIORITY, NULL);
 }

@@ -1,8 +1,9 @@
 set(VERSION_MAJOR "2")
-set(VERSION_MINOR "2")
+set(VERSION_MINOR "3")
 set(VERSION_PATCH "0")
 
 #APP
+# v2.3.0 增加MQTT客户端支持
 # v2.2.0 增加ASCII, 及网络MODBUS协议，
 #        调整部分保持寄存器地址，参见readme.md
 #        增加串口助手MODBUS ASCII配置文件

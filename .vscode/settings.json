@@ -122,7 +122,12 @@
         "cstring": "c",
         "httpparser.h": "c",
         "sstream": "c",
-        "cctype": "c"
+        "cctype": "c",
+        "mqttunsubscribe.h": "c",
+        "streambuf": "c",
+        "httputil.h": "c",
+        "mqttclient.h": "c",
+        "stacktrace.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": true,
     "C_Cpp.errorSquiggles": "disabled"

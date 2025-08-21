@@ -92,6 +92,7 @@ typedef struct DeviceMap
 #define REG_SOCKET_TYPE_STYLE_UDP (1)       // UDP
 #define REG_SOCKET_TYPE_STYLE_TCPSERVER (2) // TCP SERVER
 #define REG_SOCKET_TYPE_STYLE_TCPCLIENT (3) // TCP CLIENT
+#define REG_SOCKET_TYPE_STYLE_MQTT (4)      // MQTT CLIENT
 
 #define REG_SOCKET_TYPE_PROTOCOL (7 << 4)   // 协议类型
 #define REG_SOCKET_TYPE_PROTOCOL_RTU (0 << 4)    // RTU

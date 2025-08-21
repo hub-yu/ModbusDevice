@@ -87,6 +87,8 @@ if(${WIZNET_DRIVER})
         ./ioLibrary_Driver/Internet/DHCP
         ./ioLibrary_Driver/Internet/DNS
         ./ioLibrary_Driver/Internet/httpServer
+        ./ioLibrary_Driver/Internet/MQTT
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src
     )
 
     file(GLOB WIZNET_LIST
@@ -98,6 +100,20 @@ if(${WIZNET_DRIVER})
         ./ioLibrary_Driver/Internet/httpServer/httpServer.c
         ./ioLibrary_Driver/Internet/httpServer/httpParser.c
         ./ioLibrary_Driver/Internet/httpServer/httpUtil.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTClient.c
+        ./ioLibrary_Driver/Internet/MQTT/mqtt_interface.c
+
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTConnectClient.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTConnectServer.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTDeserializePublish.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTFormat.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTPacket.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTSerializePublish.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTSubscribeClient.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTSubscribeServer.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTUnsubscribeClient.c
+        ./ioLibrary_Driver/Internet/MQTT/MQTTPacket/src/MQTTUnsubscribeServer.c
+        
     )
 
 endif()

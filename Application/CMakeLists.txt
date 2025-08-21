@@ -44,6 +44,7 @@ if(${WIZNET_DRIVER})
         ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Internet/DHCP
         ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Internet/DNS
         ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Internet/httpServer
+        ${PROJECT_SOURCE_DIR}/Platform/ioLibrary_Driver/Internet/MQTT
     )
 endif()
 
