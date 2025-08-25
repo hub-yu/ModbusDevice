@@ -576,17 +576,17 @@ void messageArrived_5(MessageData *md)
     net_rcv_override(5, message->payload, message->payloadlen);
 }
 
-void messageArrived_6(MessageData *md)
-{
-    MQTTMessage *message = md->message;
-    net_rcv_override(6, message->payload, message->payloadlen);
-}
+// void messageArrived_6(MessageData *md)
+// {
+//     MQTTMessage *message = md->message;
+//     net_rcv_override(6, message->payload, message->payloadlen);
+// }
 
-void messageArrived_7(MessageData *md)
-{
-    MQTTMessage *message = md->message;
-    net_rcv_override(7, message->payload, message->payloadlen);
-}
+// void messageArrived_7(MessageData *md)
+// {
+//     MQTTMessage *message = md->message;
+//     net_rcv_override(7, message->payload, message->payloadlen);
+// }
 
 static messageHandler messageArrived[SOCKET_END] = {
     messageArrived_0,
@@ -595,8 +595,8 @@ static messageHandler messageArrived[SOCKET_END] = {
     messageArrived_3,
     messageArrived_4,
     messageArrived_5,
-    messageArrived_6,
-    messageArrived_7,
+    // messageArrived_6,
+    // messageArrived_7,
 };
 
 static int32_t mqtt(uint8_t n)
