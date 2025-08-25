@@ -26,6 +26,8 @@ static uint8_t rcv_buf[SOCKET_END][NET_RCV_BUFFER_SIZE] = {};
 static size_t rcv_len[SOCKET_END] = {};
 static uint64_t ms[SOCKET_END] = {};
 
+static uint8_t html[500] = {};
+
 static DeviceMap deviceMap;
 
 void EXTI15_10_IRQHandler(void)
@@ -343,6 +345,178 @@ static int32_t dhcp(uint8_t n)
     return state == DHCP_IP_LEASED ? 0 : 1;
 }
 
+
+void generate(uint8_t n, uint8_t *buf, uint16_t *len)
+{
+
+    static char *types[] = {
+        "关闭",
+        "UDP",
+        "TCP-SERVER",
+        "TCP-CLIENT",
+        "MQTT",
+    };
+
+    static char *protocols[] = {
+        "RTU",
+        "ASCII",
+        "IP协议"};
+
+    sprintf(buf, "<html><head><meta charset='utf-8'><title>通道:%d 信息</title></head><body>"
+                 "(%d)[3:0] 通讯:%s <br>"
+                 "(%d)[6:4] 协议:%s<br>"
+                 "(%d)[7] 目标域名:%s<br>"
+                 "(%d)[15:0] 超时重连: %dms<br>"
+                 "(%d)[15:0] 本地端口: %d<br>"
+                 "(%d)[15:0] 目标端口: %d<br>"
+                 "(%d-%d) 目标IP: %d.%d.%d.%d<br>"
+                 "(%d-%d) 目标域名: %s<br>"
+                 "<a href=\"/\">返回</a>"
+                 "</body></html>",
+            n,
+            REG_SOCKET_TYPE(n),
+            types[deviceMap.regs.netMap[n].type & REG_SOCKET_TYPE_STYLE],
+            REG_SOCKET_TYPE(n),
+            protocols[(deviceMap.regs.netMap[n].type & REG_SOCKET_TYPE_PROTOCOL) >> 4],
+            REG_SOCKET_TYPE(n),
+            (deviceMap.regs.netMap[n].type & REG_SOCKET_TYPE_DOMAIN ? "开" : "关"),
+            REG_SOCKET_TIMEOUT(n),
+            deviceMap.regs.netMap[n].timeout_ms,
+            REG_SOCKET_LOCAL_PORT(n),
+            deviceMap.regs.netMap[n].local_port,
+            REG_SOCKET_REMOTE_PORT(n),
+            deviceMap.regs.netMap[n].remote_port,
+            REG_SOCKET_REMOTE_IP(n),
+            REG_SOCKET_REMOTE_IP(n) + 1,
+            deviceMap.regs.netMap[n].remote_ip[0], deviceMap.regs.netMap[n].remote_ip[1], deviceMap.regs.netMap[n].remote_ip[2], deviceMap.regs.netMap[n].remote_ip[3],
+            REG_SOCKET_REMOTE_DOMAIN(n),
+            REG_SOCKET_REMOTE_DOMAIN(n) + 15,
+            deviceMap.regs.netMap[n].remote_domain
+
+    );
+    *len = strlen((char *)buf);
+    // LOG_INFO("%d %d\r\n", *len, (*len + strlen(RES_CGIHEAD_OK) + 8));
+}
+
+uint8_t predefined_get_cgi_processor(uint8_t *uri_name, uint8_t *buf, uint16_t *len)
+{
+
+    if (strcmp((const char *)uri_name, "n.cgi") == 0)
+    {
+
+        uint32_t baudrate[] = {115200, 57600, 19200, 9600};
+
+        sprintf(buf, "<html><head><meta charset='utf-8'><title>基本信息</title></head><body>"
+                     "(0)[7:0] 设备地址: %d<br>"
+                     "(2)[5] DHCP: %s<br>"
+                     "(2)[4] 输出掉电保存: %s<br>"
+                     "(2)[3] 串口日志: %s<br>"
+                     "(2)[2] 串口协议: %s<br>"
+                     "(2)[1:0] 串口波特率: %d<br>"
+                     "<hr>"
+                     "(3:5) MAC: %02x.%02x.%02x.%02x.%02x.%02x<br>"
+                     "(6:7) IP: %d.%d.%d.%d<br>"
+                     "(8:9) MASK: %d.%d.%d.%d<br>"
+                     "(10:11) GATEWAY: %d.%d.%d.%d<br>"
+                     "(12:13) DNS: %d.%d.%d.%d<br>"
+                     "<a href=\"/\">返回</a>"
+                     "</body></html>",
+                deviceMap.regs.id,
+                (deviceMap.regs.config & REG_CONFIG_DHCP ? "开" : "关"),
+                (deviceMap.regs.config & REG_CONFIG_OUTKEEP ? "开" : "关"),
+                (deviceMap.regs.config & REG_CONFIG_LOG ? "开" : "关"),
+                (deviceMap.regs.config & REG_CONFIG_PROTOCOL ? "ASCII" : "RTU"),
+                baudrate[(deviceMap.regs.config & REG_CONFIG_BAUDRATE)],
+                deviceMap.regs.net_mac[0], deviceMap.regs.net_mac[1], deviceMap.regs.net_mac[2], deviceMap.regs.net_mac[3], deviceMap.regs.net_mac[4], deviceMap.regs.net_mac[5],
+                deviceMap.regs.net_ip[0], deviceMap.regs.net_ip[1], deviceMap.regs.net_ip[2], deviceMap.regs.net_ip[3],
+                deviceMap.regs.net_mask[0], deviceMap.regs.net_mask[1], deviceMap.regs.net_mask[2], deviceMap.regs.net_mask[3],
+                deviceMap.regs.net_gateway[0], deviceMap.regs.net_gateway[1], deviceMap.regs.net_gateway[2], deviceMap.regs.net_gateway[3],
+                deviceMap.regs.net_dns[0], deviceMap.regs.net_dns[1], deviceMap.regs.net_dns[2], deviceMap.regs.net_dns[3]);
+        *len = strlen((char *)buf);
+        // LOG_INFO("%d\r\n", (*len + strlen(RES_CGIHEAD_OK) + 8));
+        return HTTP_OK;
+    }
+    else if (strcmp((const char *)uri_name, "0.cgi") == 0)
+    {
+        generate(0, buf, len);
+        return HTTP_OK;
+    }
+    else if (strcmp((const char *)uri_name, "1.cgi") == 0)
+    {
+        generate(1, buf, len);
+        return HTTP_OK;
+    }
+    else if (strcmp((const char *)uri_name, "2.cgi") == 0)
+    {
+        generate(2, buf, len);
+        return HTTP_OK;
+    }
+    else if (strcmp((const char *)uri_name, "3.cgi") == 0)
+    {
+        generate(3, buf, len);
+        return HTTP_OK;
+    }
+    else if (strcmp((const char *)uri_name, "4.cgi") == 0)
+    {
+        generate(4, buf, len);
+        return HTTP_OK;
+    }
+    else if (strcmp((const char *)uri_name, "5.cgi") == 0)
+    {
+        generate(5, buf, len);
+        return HTTP_OK;
+    }
+    return HTTP_FAILED;
+}
+
+uint8_t predefined_set_cgi_processor(uint8_t *uri_name, uint8_t *uri, uint8_t *buf, uint16_t *len)
+{
+    // 复位
+    if (strcmp((const char *)uri_name, "rs.cgi") == 0)
+    {
+        Modbus modbus = {
+            .from = 255,
+            .addr = 0,
+            .pdu = {
+                .cmd = MODBUS_CMD_SET_REG,
+                .reg = 1,
+                .num = 1}};
+        snd_Device(&modbus);
+
+        sprintf(buf, "<html><head><meta charset='utf-8'><title>设备重启</title></head><body>"
+                     "<p>%s</p>"
+                     "<a href=\"/\">返回</a>"
+                     "</body></html>",
+                "重启完成");
+        *len = strlen((char *)buf);
+
+        return HTTP_OK;
+    }
+    // 恢复出厂
+    else if (strcmp((const char *)uri_name, "rst.cgi") == 0)
+    {
+        Modbus modbus = {
+            .from = 255,
+            .addr = 0,
+            .pdu = {
+                .cmd = MODBUS_CMD_SET_REG,
+                .reg = 1,
+                .num = 2}};
+        snd_Device(&modbus);
+
+        sprintf(buf, "<html><head><meta charset='utf-8'><title>设备恢复出厂</title></head><body>"
+                     "<p>%s</p>"
+                     "<a href=\"/\">返回</a>"
+                     "</body></html>",
+                "恢复出厂完成");
+        *len = strlen((char *)buf);
+
+        return HTTP_OK;
+    }
+
+    return HTTP_FAILED;
+}
+
 static int32_t web()
 {
     static uint8_t tx[520] = {};
@@ -359,64 +533,58 @@ static int32_t web()
         httpServer_init(tx, rx, 1, &n);
         need_init = 0;
     }
+    // if (getSn_IR(n) & Sn_IR_RECV)
+    //     setSn_IR(n, Sn_IR_RECV);
+
     httpServer_run(0);
-    LOG_INFO("%d\r\n", get_httpServer_timecount());
+    get_httpServer_timecount();
 }
 
 void messageArrived_0(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    LOG_INFO("0: %d\r\n", (int)message->payloadlen);
-
     net_rcv_override(0, message->payload, message->payloadlen);
 }
 
 void messageArrived_1(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    // LOG_INFO("1: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
     net_rcv_override(1, message->payload, message->payloadlen);
 }
 
 void messageArrived_2(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    // LOG_INFO("2: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
     net_rcv_override(2, message->payload, message->payloadlen);
 }
 
 void messageArrived_3(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    // LOG_INFO("3: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
     net_rcv_override(3, message->payload, message->payloadlen);
 }
 
 void messageArrived_4(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    // LOG_INFO("4: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
     net_rcv_override(4, message->payload, message->payloadlen);
 }
 
 void messageArrived_5(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    // LOG_INFO("5: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
     net_rcv_override(5, message->payload, message->payloadlen);
 }
 
 void messageArrived_6(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    // LOG_INFO("6: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
     net_rcv_override(6, message->payload, message->payloadlen);
 }
 
 void messageArrived_7(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    // LOG_INFO("7: %d.%s\r\n", (int)message->payloadlen, (char *)message->payload);
     net_rcv_override(7, message->payload, message->payloadlen);
 }
 
@@ -836,7 +1004,7 @@ static void net_task(void *arg)
         if ((deviceMap.regs.config & REG_CONFIG_DHCP) && dhcp(SOCKET_CHANNEL_7))
             continue;
 
-        // web();
+        web();
         for (int32_t i = 0; i < SOCKET_CHANNEL_6; i++)
             sokit(i, rcv_buf[i], rcv_len + i, ms + i);
     }
@@ -912,6 +1080,25 @@ void net_init()
     xTimer = xTimerCreate("dhcp_timer", pdMS_TO_TICKS(1000), pdTRUE, NULL, timer_callback);
     xTimerMQTT = xTimerCreate("mqtt_timer", pdMS_TO_TICKS(10), pdTRUE, NULL, timerMQTT_callback);
 
+    sprintf(html, "<html><head><meta charset='utf-8'><title>地址 %d</title></head><body>"
+                  "<form action='/rst.cgi' method='POST'>"
+                  "<input type='submit' value='恢复出厂'></form>"
+                  "<form action='/rs.cgi' method='POST'>"
+                  "<input type='submit' value='重启'></form>"
+                  "<a href='/n.cgi'>基本信息</a><br>"
+                  "<a href='/0.cgi'>0</a><br>"
+                  "<a href='/1.cgi'>1</a><br>"
+                  "<a href='/2.cgi'>2</a><br>"
+                  "<a href='/3.cgi'>3</a><br>"
+                  "<a href='/4.cgi'>4</a><br>"
+                  "<a href='/5.cgi'>5</a><br>"
+                  "<a href='https://xiaopj.com:444'>帮助</a><br>"
+                  //   "<a href='/'>刷新</a>"
+                  "</body></html>",
+            deviceMap.regs.id);
+
+    // LOG_INFO("html len:%d\r\n", strlen(html));
+    reg_httpServer_webContent("index.html", html);
     xTaskCreate(net_task, NET_TASK_NAME, NET_TASK_STACK_SIZE, NULL, NET_TASK_PRIORITY, NULL);
 }
 

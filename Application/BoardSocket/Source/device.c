@@ -82,7 +82,7 @@ static void regRestore()
                 // 网络通道寄存器
                 // 通道0
                 {
-                    .type = REG_SOCKET_TYPE_STYLE_UDP, // 类型
+                    .type = REG_SOCKET_TYPE_PROTOCOL_RTU | REG_SOCKET_TYPE_STYLE_UDP, // 类型
                     .local_port = 50000,               // 本地端口
                     .remote_port = 60000,              // 目标端口
                     .remote_ip = {192, 168, 1, 4},     // 目标地址
@@ -91,7 +91,7 @@ static void regRestore()
                 },
                 // 通道1
                 {
-                    .type = REG_SOCKET_TYPE_STYLE_TCPSERVER, // 类型
+                    .type = REG_SOCKET_TYPE_PROTOCOL_RTU | REG_SOCKET_TYPE_STYLE_TCPSERVER, // 类型
                     .local_port = 50001,                     // 本地端口
                     .remote_port = 60001,                    // 目标端口
                     .remote_ip = {192, 168, 1, 4},           // 目标地址

@@ -223,7 +223,7 @@
  * 此值默认为 4096 字节，但必须根据每个应用程序进行调整。
  * 注意，堆将出现在 .bss 段中。参见 https://www.freertos.org/a00111.html。 */
 #ifdef STM32F10X_MD
-#define configTOTAL_HEAP_SIZE (12 * 1024)
+#define configTOTAL_HEAP_SIZE (9 * 1024)
 #else
 #define configTOTAL_HEAP_SIZE (3 * 1024 - 100)
 #endif

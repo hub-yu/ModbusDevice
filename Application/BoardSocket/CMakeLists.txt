@@ -1,8 +1,9 @@
 set(VERSION_MAJOR "2")
-set(VERSION_MINOR "3")
+set(VERSION_MINOR "4")
 set(VERSION_PATCH "0")
 
 #APP
+# v2.4.0 增加浏览器接口复位，恢复出厂设置，状态查询
 # v2.3.0 增加MQTT客户端支持
 # v2.2.0 增加ASCII, 及网络MODBUS协议，
 #        调整部分保持寄存器地址，参见readme.md

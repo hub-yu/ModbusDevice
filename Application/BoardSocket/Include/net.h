@@ -23,7 +23,7 @@ typedef enum
 
 #define NET_TASK_NAME "net_task"
 #define NET_TASK_PRIORITY 1
-#define NET_TASK_STACK_SIZE 1024
+#define NET_TASK_STACK_SIZE (512 + 128)
 
 __attribute__((weak)) size_t net_rcv_override(uint8_t sn, const void *array, size_t len);
 
