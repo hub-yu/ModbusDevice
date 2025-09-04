@@ -644,6 +644,9 @@ static void device_task(void *param)
 
     while (1)
     {
+        volatile UBaseType_t uxHighWaterMark; // 70
+        uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+
         // 处理设备控制
         process_cmd(deviceMap.regs.cmd);
 

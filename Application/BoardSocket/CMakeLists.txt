@@ -1,8 +1,9 @@
 set(VERSION_MAJOR "2")
 set(VERSION_MINOR "4")
-set(VERSION_PATCH "2")
+set(VERSION_PATCH "3")
 
 #APP
+# v2.4.3 调整增大串口任务栈大小
 # v2.4.2 调整任务内存
 # v2.4.1 修复flash溢出
 # v2.4.0 增加浏览器接口复位，恢复出厂设置，状态查询

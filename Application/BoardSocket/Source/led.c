@@ -7,7 +7,10 @@
 static void led_task(void *param)
 {
     for (;;)
-    {        
+    {       
+        volatile UBaseType_t uxHighWaterMark; // 70
+        uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+        
         GPIO_SetBits(GPIOB, GPIO_Pin_3);
         vTaskDelay(pdMS_TO_TICKS(LED_TASK_DELAY));
         GPIO_ResetBits(GPIOB, GPIO_Pin_3);

@@ -125,6 +125,7 @@ stm32f030 基地址: 0x8003c00 (FLASH_ADDR)
   - 1: UDP
   - 2: TCP SERVER
   - 3: TCP CLIENT
+  - 4: MQTT
 - [6:4] 协议类型
   - 0: RTU
   - 1: ASCII

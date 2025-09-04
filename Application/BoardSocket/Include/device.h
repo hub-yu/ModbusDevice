@@ -127,7 +127,7 @@ typedef struct DeviceMap
 
 #define DEVICE_TASK_NAME "device_task"
 #define DEVICE_TASK_PRIORITY 3
-#define DEVICE_TASK_STACK_SIZE (512)
+#define DEVICE_TASK_STACK_SIZE (200)
 
 void device_init(void);
 

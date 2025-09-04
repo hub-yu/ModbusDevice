@@ -60,8 +60,8 @@ if(${DEVICE_TYPE} MATCHES "STM32F103C8T6")
     set(MCU_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft") 
     set(CMAKE_C_FLAGS_DEBUG "-g -ggdb -Og")
     set(CMAKE_C_FLAGS_RELEASE "-O3")
-    set(CMAKE_C_FLAGS "${MCU_FLAGS}  -ffunction-sections -fdata-sections -fno-builtin -fno-common -Wextra -Werror -Wno-unknown-pragmas -Wl,-u,_printf_float") #-w -Wall
-    # set(CMAKE_C_FLAGS "${MCU_FLAGS} -ffunction-sections -fdata-sections -fno-builtin -fno-common -Wall -Wno-unknown-pragmas")
+    # set(CMAKE_C_FLAGS "${MCU_FLAGS}  -ffunction-sections -fdata-sections -fno-builtin -fno-common -Wextra -Werror -Wno-unknown-pragmas -Wl,-u,_printf_float") #-w -Wall
+    set(CMAKE_C_FLAGS "${MCU_FLAGS} -ffunction-sections -fdata-sections -fno-builtin -fno-common ") # -Wall -Wno-unknown-pragmas
     set(CMAKE_ASM_FLAGS "${MCU_FLAGS} -x assembler-with-cpp")
 endif()
 

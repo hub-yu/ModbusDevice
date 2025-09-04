@@ -998,6 +998,9 @@ static void net_task(void *arg)
     while (1)
     {
 
+        volatile UBaseType_t uxHighWaterMark; // 70
+        uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+        
         if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE)
             memset(rcv_len, 0, SOCKET_END); // 清空接收缓冲区
 

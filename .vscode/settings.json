@@ -127,7 +127,8 @@
         "streambuf": "c",
         "httputil.h": "c",
         "mqttclient.h": "c",
-        "stacktrace.h": "c"
+        "stacktrace.h": "c",
+        "projdefs.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": true,
     "C_Cpp.errorSquiggles": "disabled"

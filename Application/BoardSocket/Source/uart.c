@@ -69,8 +69,8 @@ static void uart_task(void *param)
     for (;;)
     {
 
-        // volatile UBaseType_t uxHighWaterMark; // 70
-        // uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+        volatile UBaseType_t uxHighWaterMark; // 70
+        uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
 
         size_t len_used = len_received ? uart_rcv_override(array, len_received) : 0;
         if (len_used)

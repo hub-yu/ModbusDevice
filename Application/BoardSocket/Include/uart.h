@@ -10,7 +10,7 @@
 #define UART_SND_BUFFER_SIZE 256
 #define UART_TASK_NAME "uart_task"
 #define UART_TASK_PRIORITY 2
-#define UART_TASK_STACK_SIZE 128
+#define UART_TASK_STACK_SIZE 150
 
 void uart_init(uint32_t baudrate);
 void uart_snd(const void *array, size_t len);
