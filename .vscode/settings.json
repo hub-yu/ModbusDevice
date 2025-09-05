@@ -128,7 +128,8 @@
         "httputil.h": "c",
         "mqttclient.h": "c",
         "stacktrace.h": "c",
-        "projdefs.h": "c"
+        "projdefs.h": "c",
+        "stm32f10x_iwdg.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": true,
     "C_Cpp.errorSquiggles": "disabled"

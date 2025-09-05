@@ -1001,7 +1001,7 @@ static void net_task(void *arg)
         volatile UBaseType_t uxHighWaterMark; // 70
         uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
         
-        if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(2000)) != pdTRUE)
+        if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(500)) != pdTRUE)
             memset(rcv_len, 0, SOCKET_END); // 清空接收缓冲区
 
         if ((deviceMap.regs.config & REG_CONFIG_DHCP) && dhcp(SOCKET_CHANNEL_7))
@@ -1095,7 +1095,7 @@ void net_init()
                   "<a href='/3.cgi'>3</a><br>"
                   "<a href='/4.cgi'>4</a><br>"
                   "<a href='/5.cgi'>5</a><br>"
-                  "<a href='https://xiaopj.com:444'>帮助</a><br>"
+                  "<a href='https://xiaopj.com:444/stm32/p0zc2gk4/'>帮助</a><br>"
                   //   "<a href='/'>刷新</a>"
                   "</body></html>",
             deviceMap.regs.id);
