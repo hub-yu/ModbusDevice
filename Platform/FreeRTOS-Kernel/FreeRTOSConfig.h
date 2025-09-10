@@ -181,7 +181,7 @@
 /* configTIMER_TASK_STACK_DEPTH 设置分配给定时器任务的堆栈大小（以字为单位，而不是以字节为单位！）。
  * 定时器任务是标准 FreeRTOS 任务。参见 https://www.freertos.org/RTOS-software-timer-service-daemon-task.html
  * 仅在 configUSE_TIMERS 设置为 1 时使用。 */
-#define configTIMER_TASK_STACK_DEPTH configMINIMAL_STACK_SIZE
+#define configTIMER_TASK_STACK_DEPTH (configMINIMAL_STACK_SIZE * 2)
 
 /* configTIMER_QUEUE_LENGTH 设置用于向定时器任务发送命令的队列的长度（队列可以容纳的离散项目数量）。
  * 参见 https://www.freertos.org/RTOS-software-timer-service-daemon-task.html 仅在 configUSE_TIMERS 设置为 1 时使用。 */
@@ -304,7 +304,7 @@
  * 如果 configCHECK_FOR_STACK_OVERFLOW 设置为 2，则检查查看写入任务堆栈末尾的模式是否被覆盖。
  * 这较慢，但会捕获大多数（但不是全部）堆栈溢出。应用程序编写者必须在 configCHECK_FOR_STACK_OVERFLOW 设置为 1 时提供堆栈溢出回调。
  * 参见 https://www.freertos.org/Stacks-and-stack-overflow-checking.html 如果保持未定义，则默认为 0。 */
-#define configCHECK_FOR_STACK_OVERFLOW 0
+#define configCHECK_FOR_STACK_OVERFLOW 2
 
 /******************************************************************************/
 /* 运行时和任务统计收集相关定义。 ***************************************/
@@ -499,7 +499,7 @@
 #define configUSE_TASK_NOTIFICATIONS 1
 #define configUSE_MUTEXES 0
 #define configUSE_RECURSIVE_MUTEXES 0
-#define configUSE_COUNTING_SEMAPHORES 0
+#define configUSE_COUNTING_SEMAPHORES 1
 #define configUSE_QUEUE_SETS 0
 #define configUSE_APPLICATION_TASK_TAG 0
 

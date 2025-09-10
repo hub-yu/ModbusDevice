@@ -1,8 +1,14 @@
 set(VERSION_MAJOR "2")
 set(VERSION_MINOR "5")
-set(VERSION_PATCH "0")
+set(VERSION_PATCH "1")
 
 #APP
+# v2.5.1 移除看门狗方便查问题
+#        修复net栈中与静态区重名的变量
+#        调整configTIMER_TASK_STACK_DEPTH大小，崩溃的主要原因
+#        增大串口任务栈空间
+#        增加栈溢出回调检测
+#        移除CRC16的特殊值不开启校验
 # v2.5.0 增加看门狗
 # v2.4.3 调整增大串口任务栈大小
 # v2.4.2 调整任务内存

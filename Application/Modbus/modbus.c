@@ -136,9 +136,10 @@ int32_t modebus_deserilize_rtu(Modbus_RTU *rtu, const uint8_t *data, int32_t len
 
     rtu->addr = data[0];
     rtu->crc = MODBUS_TO_UINT16(data[ret + 2], data[ret + 1]);
-    if (rtu->crc && (rtu->crc != crc16(data, ret + 1)))
+    // if (rtu->crc && (rtu->crc != crc16(data, ret + 1)))
+    //     return -1;
+    if (rtu->crc != crc16(data, ret + 1))
         return -1;
-
     return (ret + 3);
 }
 

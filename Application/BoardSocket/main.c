@@ -16,6 +16,21 @@ static void consoleHook(const uint8_t *d, int32_t l)
     uart_snd(d, l);
 }
 
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+    /* 此函数会在栈溢出时被内核调用。
+       注意：严重溢出时，参数本身可能已损坏！ */
+    // (void) xTask; // 可能不可靠，使用 pxCurrentTCB 更保险
+    // (void) pcTaskName; // 可能不可靠
+
+    // 最简单的处理：打印错误并停止调度
+    LOG_INFO("STACK OVERFLOW in Task: %s\r\n", pcTaskName); // 尝试打印，可能失败
+    // 或者直接禁用中断，进入死循环
+    taskDISABLE_INTERRUPTS();
+    for (;;) {
+        // 停在这里，或者触发看门狗复位
+    }
+}
+
 int main(void)
 {
     SystemCoreClockUpdate();

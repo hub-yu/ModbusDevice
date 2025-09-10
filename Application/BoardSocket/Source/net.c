@@ -20,11 +20,11 @@
 #include "modbus.h"
 
 static TimerHandle_t xTimer, xTimerMQTT;
-static SemaphoreHandle_t xSemaphore;
+static SemaphoreHandle_t xSemaphore, xSemaphoreSec, xSemaphore10MS;
 static StreamBufferHandle_t xStreamBufferSnd[SOCKET_END];
 static uint8_t rcv_buf[SOCKET_END][NET_RCV_BUFFER_SIZE] = {};
 static size_t rcv_len[SOCKET_END] = {};
-static uint64_t ms[SOCKET_END] = {};
+static uint64_t rcv_ms[SOCKET_END] = {};
 
 static uint8_t html[500] = {};
 
@@ -203,14 +203,21 @@ static void net_update()
 
 static void timer_callback(TimerHandle_t xTimer)
 {
+    //     // taskENTER_CRITICAL();
     DHCP_time_handler();       // 处理DHCP超时
     DNS_time_handler();        // 处理DNS超时
     httpServer_time_handler(); // 处理httpserver超时
+    //     // taskEXIT_CRITICAL();
+
+    // xSemaphoreGive(xSemaphoreSec);
 }
 static void timerMQTT_callback(TimerHandle_t xTimerMQTT)
 {
+    // //   taskENTER_CRITICAL();
     for (int32_t i = 0; i < 10; i++)
         MilliTimer_Handler();
+    // // taskEXIT_CRITICAL();
+    // xSemaphoreGive(xSemaphore10MS);
 }
 
 static void snd_Device(const Modbus *modbus)
@@ -344,7 +351,6 @@ static int32_t dhcp(uint8_t n)
 
     return state == DHCP_IP_LEASED ? 0 : 1;
 }
-
 
 void generate(uint8_t n, uint8_t *buf, uint16_t *len)
 {
@@ -537,7 +543,7 @@ static int32_t web()
     //     setSn_IR(n, Sn_IR_RECV);
 
     httpServer_run(0);
-    get_httpServer_timecount();
+    // get_httpServer_timecount();
 }
 
 void messageArrived_0(MessageData *md)
@@ -700,7 +706,7 @@ static int32_t mqtt(uint8_t n)
     }
 }
 
-static void udp(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len)
+static void udp(uint8_t n, uint8_t *rcv, size_t *len, uint64_t *ms)
 {
 
     LOG_INFO("[%d] udp, SR: 0x%02x\r\n", n, getSn_SR(n));
@@ -722,23 +728,30 @@ static void udp(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len)
 
         do
         {
-            size_t len_used = *rcv_len ? net_rcv_override(n, rcv_buf, *rcv_len) : 0;
+            size_t len_used = *len ? net_rcv_override(n, rcv, *len) : 0;
             if (len_used)
             {
-                for (size_t i = 0; i < (*rcv_len - len_used); i++)
-                    rcv_buf[i] = rcv_buf[i + len_used];
+                for (size_t i = 0; i < (*len - len_used); i++)
+                    rcv[i] = rcv[i + len_used];
 
-                *rcv_len -= len_used;
+                *len -= len_used;
                 continue;
             }
 
             int32_t ret = getSn_RX_RSR(n);
             if (ret <= 0)
+            {
+                if (pdTICKS_TO_MS(xTaskGetTickCount()) >= (*ms + deviceMap.regs.netMap[n].timeout_ms))
+                {
+                    *len = 0;
+                }
                 break;
-            uint16_t max_size = NET_RCV_BUFFER_SIZE - *rcv_len;
-            int32_t len_rcv = recvfrom(n, rcv_buf + *rcv_len, (ret >= max_size ? max_size : ret), deviceMap.regs.netMap[n].remote_ip, &deviceMap.regs.netMap[n].remote_port);
-            *rcv_len += len_rcv;
+            }
+            uint16_t max_size = NET_RCV_BUFFER_SIZE - *len;
+            int32_t len_rcv = recvfrom(n, rcv + *len, (ret >= max_size ? max_size : ret), deviceMap.regs.netMap[n].remote_ip, &deviceMap.regs.netMap[n].remote_port);
+            *len += len_rcv;
 
+            *ms = pdTICKS_TO_MS(xTaskGetTickCount());
         } while (1);
     }
     break;
@@ -753,7 +766,7 @@ static void udp(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len)
     }
 }
 
-static void tcp_server(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
+static void tcp_server(uint8_t n, uint8_t *rcv, size_t *len, uint64_t *ms)
 {
     uint8_t snd[NET_SND_BUFFER_SIZE];
     size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[n], snd, NET_SND_BUFFER_SIZE, 0);
@@ -776,13 +789,13 @@ static void tcp_server(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *m
 
         do
         {
-            size_t len_used = *rcv_len ? net_rcv_override(n, rcv_buf, *rcv_len) : 0;
+            size_t len_used = *len ? net_rcv_override(n, rcv, *len) : 0;
             if (len_used)
             {
-                for (size_t i = 0; i < (*rcv_len - len_used); i++)
-                    rcv_buf[i] = rcv_buf[i + len_used];
+                for (size_t i = 0; i < (*len - len_used); i++)
+                    rcv[i] = rcv[i + len_used];
 
-                *rcv_len -= len_used;
+                *len -= len_used;
                 continue;
             }
 
@@ -792,13 +805,13 @@ static void tcp_server(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *m
                 if (pdTICKS_TO_MS(xTaskGetTickCount()) >= (*ms + deviceMap.regs.netMap[n].timeout_ms))
                 {
                     disconnect(n);
-                    *rcv_len = 0;
+                    *len = 0;
                 }
                 break;
             }
-            uint16_t max_size = NET_RCV_BUFFER_SIZE - *rcv_len;
-            int32_t len_rcv = recv(n, rcv_buf + *rcv_len, (ret >= max_size ? max_size : ret));
-            *rcv_len += len_rcv;
+            uint16_t max_size = NET_RCV_BUFFER_SIZE - *len;
+            int32_t len_rcv = recv(n, rcv + *len, (ret >= max_size ? max_size : ret));
+            *len += len_rcv;
 
             *ms = pdTICKS_TO_MS(xTaskGetTickCount());
 
@@ -829,7 +842,7 @@ static void tcp_server(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *m
     }
 }
 
-static void tcp_client(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
+static void tcp_client(uint8_t n, uint8_t *rcv, size_t *len, uint64_t *ms)
 {
     uint8_t snd[NET_SND_BUFFER_SIZE];
     size_t len_snd = xStreamBufferReceive(xStreamBufferSnd[n], snd, NET_SND_BUFFER_SIZE, 0);
@@ -852,13 +865,13 @@ static void tcp_client(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *m
 
         do
         {
-            size_t len_used = *rcv_len ? net_rcv_override(n, rcv_buf, *rcv_len) : 0;
+            size_t len_used = *len ? net_rcv_override(n, rcv, *len) : 0;
             if (len_used)
             {
-                for (size_t i = 0; i < (*rcv_len - len_used); i++)
-                    rcv_buf[i] = rcv_buf[i + len_used];
+                for (size_t i = 0; i < (*len - len_used); i++)
+                    rcv[i] = rcv[i + len_used];
 
-                *rcv_len -= len_used;
+                *len -= len_used;
                 continue;
             }
 
@@ -869,13 +882,13 @@ static void tcp_client(uint8_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *m
                 {
                     disconnect(n);
                     // close(n);
-                    *rcv_len = 0;
+                    *len = 0;
                 }
                 break;
             }
-            uint16_t max_size = NET_RCV_BUFFER_SIZE - *rcv_len;
-            int32_t len_rcv = recv(n, rcv_buf + *rcv_len, (ret >= max_size ? max_size : ret));
-            *rcv_len += len_rcv;
+            uint16_t max_size = NET_RCV_BUFFER_SIZE - *len;
+            int32_t len_rcv = recv(n, rcv + *len, (ret >= max_size ? max_size : ret));
+            *len += len_rcv;
 
             *ms = pdTICKS_TO_MS(xTaskGetTickCount());
         } while (1);
@@ -930,7 +943,7 @@ static void dns_domain(uint8_t n)
     }
 }
 
-static void sokit(int32_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
+static void sokit(int32_t n, uint8_t *rcv, size_t *len, uint64_t *ms)
 {
     if (deviceMap.regs.netMap[n].type & REG_SOCKET_TYPE_DOMAIN)
     {
@@ -941,13 +954,13 @@ static void sokit(int32_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
     switch (deviceMap.regs.netMap[n].type & REG_SOCKET_TYPE_STYLE)
     {
     case REG_SOCKET_TYPE_STYLE_UDP:
-        udp(n, rcv_buf, rcv_len);
+        udp(n, rcv, len, ms);
         break;
     case REG_SOCKET_TYPE_STYLE_TCPSERVER:
-        tcp_server(n, rcv_buf, rcv_len, ms);
+        tcp_server(n, rcv, len, ms);
         break;
     case REG_SOCKET_TYPE_STYLE_TCPCLIENT:
-        tcp_client(n, rcv_buf, rcv_len, ms);
+        tcp_client(n, rcv, len, ms);
         break;
     case REG_SOCKET_TYPE_STYLE_MQTT:
         mqtt(n);
@@ -957,6 +970,7 @@ static void sokit(int32_t n, uint8_t *rcv_buf, size_t *rcv_len, uint64_t *ms)
         break;
     }
 }
+
 
 static void net_task(void *arg)
 {
@@ -1000,7 +1014,22 @@ static void net_task(void *arg)
 
         volatile UBaseType_t uxHighWaterMark; // 70
         uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-        
+
+
+
+        // while (xSemaphoreTake(xSemaphoreSec, 0))
+        // {
+        //     DHCP_time_handler();       // 处理DHCP超时
+        //     DNS_time_handler();        // 处理DNS超时
+        //     httpServer_time_handler(); // 处理httpserver超时
+        // }
+
+        // while (xSemaphoreTake(xSemaphore10MS, 0))
+        // {
+        //     for (int32_t i = 0; i < 10; i++)
+        //         MilliTimer_Handler();
+        // }
+
         if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(500)) != pdTRUE)
             memset(rcv_len, 0, SOCKET_END); // 清空接收缓冲区
 
@@ -1009,7 +1038,7 @@ static void net_task(void *arg)
 
         web();
         for (int32_t i = 0; i < SOCKET_CHANNEL_6; i++)
-            sokit(i, rcv_buf[i], rcv_len + i, ms + i);
+            sokit(i, rcv_buf[i], rcv_len + i, rcv_ms + i);
     }
 }
 
@@ -1018,6 +1047,9 @@ void net_init()
     deviceMap = *(DeviceMap *)(FLASH_ADDR);
 
     xSemaphore = xSemaphoreCreateBinary();
+    // xSemaphoreSec = xSemaphoreCreateCounting(10, 0);
+    // xSemaphore10MS = xSemaphoreCreateCounting(10000, 0);
+
     for (int32_t i = 0; i < SOCKET_END; i++)
         xStreamBufferSnd[i] = xStreamBufferCreate(NET_SND_BUFFER_SIZE, 1);
 
