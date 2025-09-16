@@ -1,8 +1,9 @@
 set(VERSION_MAJOR "2")
 set(VERSION_MINOR "5")
-set(VERSION_PATCH "1")
+set(VERSION_PATCH "2")
 
 #APP
+# v2.5.2 修复恢复出厂引发的异常
 # v2.5.1 移除看门狗方便查问题
 #        修复net栈中与静态区重名的变量
 #        调整configTIMER_TASK_STACK_DEPTH大小，崩溃的主要原因
